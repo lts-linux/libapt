@@ -16,4 +16,5 @@ categories = ["library", "development-tools"]
 chrono = { version = "0.4.38", features = ["serde"] }
 log = "0.4.22"
 pgp = "0.14.0"
+regex = "1.11.0"
 reqwest = { version = "0.12.8", features = ["blocking"] }

@@ -12,6 +12,7 @@ pub enum FileHash {
     Md5Sum(String),
     Sha1(String),
     Sha256(String),
+    Sha512(String),
 }
 
 #[derive(Debug)]
@@ -23,7 +24,7 @@ pub struct Link {
 
 #[derive(Debug)]
 pub struct Release {
-    // field from apt release file
+    // fields from apt release file
     // see https://wiki.debian.org/DebianRepository/Format#A.22Release.22_files
     hash: Option<String>,
     pub origin: Option<String>,
@@ -172,6 +173,8 @@ impl Release {
                         section = ReleaseSection::Files(FileHash::Sha1("".to_string()));
                     } else if keyword == "sha256" {
                         section = ReleaseSection::Files(FileHash::Sha256("".to_string()));
+                    } else if keyword == "sha512" {
+                        section = ReleaseSection::Files(FileHash::Sha512("".to_string()));
                     } else {
                         warn!("Unknown keyword: {keyword} of line {line}!");
                     }
@@ -200,6 +203,7 @@ impl Release {
                         FileHash::Md5Sum(_) => FileHash::Md5Sum(parts[0].clone()),
                         FileHash::Sha1(_) => FileHash::Sha1(parts[0].clone()),
                         FileHash::Sha256(_) => FileHash::Sha256(parts[0].clone()),
+                        FileHash::Sha512(_) => FileHash::Sha512(parts[0].clone()),
                     };
 
                     if release.links.contains_key(&url) {

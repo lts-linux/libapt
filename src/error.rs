@@ -10,6 +10,9 @@ pub enum ErrorType {
     UnknownArchitecture,
     VerificationError,
     InvalidDistro,
+    UnknownPriority,
+    InvalidPackageMeta,
+    UnknownVersionRelation,
 }
 
 #[derive(Debug, Clone)]
@@ -26,6 +29,9 @@ impl fmt::Display for Error {
             ErrorType::UnknownArchitecture => "Unknown Architecture",
             ErrorType::VerificationError => "Invalid value",
             ErrorType::InvalidDistro => "Invalid distro",
+            ErrorType::UnknownPriority => "Unknown priority",
+            ErrorType::InvalidPackageMeta => "Invalid package metadata",
+            ErrorType::UnknownVersionRelation => "Unknown package version relation",
         };
 
         if let Some(message) = &self.message {

@@ -1,14 +1,18 @@
 mod distro;
 mod error;
+mod packages;
 mod release;
 mod signature;
 mod types;
 mod util;
+mod version;
 
 pub use distro::{Distro, Key};
 pub use error::{Error, ErrorType, Result};
-pub use release::Release;
+pub use release::{FileHash, Release};
 pub use types::architecture::Architecture;
+pub use types::priority::Priority;
+pub use version::{PackageVersion, Version, VersionRelation};
 
 use crate::util::download;
 
