@@ -5,9 +5,11 @@ use std::collections::HashMap;
 
 use crate::Architecture;
 use crate::Distro;
-use crate::{Error, ErrorType, Result};
+use crate::{Error, ErrorType, Result, Package};
+use crate::util::join_url;
 
-#[derive(Debug)]
+
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum FileHash {
     Md5Sum(String),
     Sha1(String),
@@ -15,7 +17,7 @@ pub enum FileHash {
     Sha512(String),
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Link {
     pub url: String,
     pub size: usize,
@@ -42,10 +44,14 @@ pub struct Release {
     pub signed_by: Vec<String>,
     pub changelogs: Option<String>,
     pub snapshots: Option<String>,
+    // internal data
+    distro: Distro,
+    // Component, Name, [Package, ...]
+    packages: HashMap<Architecture, HashMap<String, Vec<Package>>>,
 }
 
 impl Release {
-    pub fn new() -> Release {
+    pub fn new(distro: &Distro) -> Release {
         Release {
             hash: None,
             origin: None,
@@ -63,12 +69,15 @@ impl Release {
             signed_by: Vec::new(),
             changelogs: None,
             snapshots: None,
+            // internal data
+            distro: distro.clone(),
+            packages: HashMap::new(),
         }
     }
 
     pub fn parse(content: &str, distro: &Distro) -> Result<Release> {
         let mut section = ReleaseSection::Keywords;
-        let mut release = Release::new();
+        let mut release = Release::new(distro);
 
         for line in content.lines() {
             if line.trim().is_empty() {
@@ -227,7 +236,55 @@ impl Release {
             }
         }
 
+        // init package map
+        for arch in &release.architectures { 
+            release.packages.insert(arch.clone(), HashMap::new());
+        }
+
         Ok(release)
+    }
+
+    pub fn parse_components(&self) -> Result<()> {
+        for component in &self.components {
+            self.parse_component(component)?;
+        }
+        Ok(())
+    }
+
+    pub fn parse_component(&self, component: &str) -> Result<()> {
+        // source packages
+        self.parse_component_arch(component, &Architecture::Source)?;
+
+        // binary packages
+        for arch in &self.architectures {
+            self.parse_component_arch(component, arch)?;
+        }
+
+        Ok(())
+    }
+
+    fn parse_component_arch(&self, component: &str, arch: &Architecture) -> Result<()> {
+        let url = if arch == &Architecture::Source {
+            let path = format!("{component}/source/Sources");
+            self.distro.url(&path)
+        } else {
+            let arch_str = arch.to_string();
+            let path = format!("{component}/binary-{arch_str}/Packages");
+            self.distro.url(&path)
+        };
+        let url = self.distro.url(&url);
+
+        let extensions = vec!["xz", "bz2", "gz", ""];
+        for ext in extensions {
+            let package_index = join_url(&url, &ext);
+            if self.links.contains_key(&package_index) {
+                // TODO: download and parse package index.
+            } else {
+                log::info!("Index {package_index} not found.");
+            }
+        }
+
+        Ok(())
     }
 }
 

@@ -34,9 +34,9 @@ fn split_parts(version: &str) -> Vec<String> {
 #[derive(Eq, Debug)]
 pub struct Version {
     // see https://www.debian.org/doc/debian-policy/ch-controlfields.html#version
-    epoch: Option<u8>,
-    version: String,
-    revision: Option<String>,
+    pub epoch: Option<u8>,
+    pub version: String,
+    pub revision: Option<String>,
 }
 
 impl Version {

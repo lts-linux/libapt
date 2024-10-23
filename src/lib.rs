@@ -1,7 +1,7 @@
 mod distro;
 mod error;
 mod package_version;
-mod packages;
+mod package;
 mod release;
 mod signature;
 mod types;
@@ -15,6 +15,7 @@ pub use types::architecture::Architecture;
 pub use types::priority::Priority;
 pub use version::Version;
 pub use package_version::{PackageVersion, VersionRelation};
+pub use package::Package;
 
 use crate::util::download;
 
@@ -24,6 +25,7 @@ pub fn parse_distro(distro: &Distro) -> Result<Release> {
     let content = signature::verify_in_release(content, &distro)?;
     let release = Release::parse(&content, &distro)?;
 
+    
     Ok(release)
 }
 

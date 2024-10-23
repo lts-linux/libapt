@@ -1,6 +1,6 @@
 use crate::{Error, ErrorType, Result, Version};
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum VersionRelation {
     StrictSmaller,
     Smaller,
@@ -33,7 +33,7 @@ impl VersionRelation {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct PackageVersion {
     pub name: String,
     pub version: Option<Version>,
@@ -76,5 +76,60 @@ impl PackageVersion {
             relation: relation,
             version: version,
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_version_relation() {
+        let relations = vec![
+            "linux-s32-headers-5.15.0-1026",
+            "libc6 (>= 2.34)",
+            "libelf1 (>= 0.142)",
+            "libssl3 (>= 3.0.0~~alpha1)",
+            "zlib1g (>= 1:1.2.3.3)"
+        ];
+
+        let pv = PackageVersion::from_str(relations[0]).unwrap();
+        assert_eq!(pv.name, "linux-s32-headers-5.15.0-1026");
+        assert_eq!(pv.relation, None);
+        assert_eq!(pv.version, None);
+
+        let pv = PackageVersion::from_str(relations[1]).unwrap();
+        assert_eq!(pv.name, "libc6");
+        assert_eq!(pv.relation.unwrap(), VersionRelation::Larger);
+        let version = pv.version.unwrap();
+        assert_eq!(version.epoch, None);
+        assert_eq!(version.version, "2.34");
+        assert_eq!(version.revision, None);
+
+        let pv = PackageVersion::from_str(relations[2]).unwrap();
+        assert_eq!(pv.name, "libelf1");
+        assert_eq!(pv.relation.unwrap(), VersionRelation::Larger);
+        let version = pv.version.unwrap();
+        assert_eq!(version.epoch, None);
+        assert_eq!(version.version, "0.142");
+        assert_eq!(version.revision, None);
+
+
+        let pv = PackageVersion::from_str(relations[3]).unwrap();
+        assert_eq!(pv.name, "libssl3");
+        assert_eq!(pv.relation.unwrap(), VersionRelation::Larger);
+        let version = pv.version.unwrap();
+        assert_eq!(version.epoch, None);
+        assert_eq!(version.version, "3.0.0~~alpha1");
+        assert_eq!(version.revision, None);
+
+
+        let pv = PackageVersion::from_str(relations[4]).unwrap();
+        assert_eq!(pv.name, "zlib1g");
+        assert_eq!(pv.relation.unwrap(), VersionRelation::Larger);
+        let version = pv.version.unwrap();
+        assert_eq!(version.epoch, Some(1));
+        assert_eq!(version.version, "1.2.3.3");
+        assert_eq!(version.revision, None);
     }
 }

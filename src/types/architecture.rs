@@ -1,6 +1,7 @@
+use std::fmt;
 use crate::{Error, ErrorType, Result};
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Copy)]
 pub enum Architecture {
     Amd64,
     Arm64,
@@ -10,6 +11,7 @@ pub enum Architecture {
     Riscv64,
     S390x,
     All,
+    Source,
 }
 
 impl Architecture {
@@ -33,11 +35,31 @@ impl Architecture {
             return Ok(Architecture::S390x);
         } else if arch == "all" {
             return Ok(Architecture::All);
+        } else if arch == "source" {
+            return Ok(Architecture::Source);
         }
 
         Err(Error::new(
             &format!("Architecture {arch} is not known!"),
             ErrorType::UnknownArchitecture,
         ))
+    }
+}
+
+impl fmt::Display for Architecture {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let name = match self {
+            Architecture::All => "all",
+            Architecture::Amd64 => "amd64",
+            Architecture::Arm64 => "arm64",
+            Architecture::Armhf => "armhf",
+            Architecture::I386 => "i386",
+            Architecture::Ppc64el => "ppc64el",
+            Architecture::Riscv64 => "riscv64",
+            Architecture::S390x => "s390x",
+            Architecture::Source => "source",
+        };
+
+        write!(f, "{}", name)
     }
 }

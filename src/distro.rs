@@ -1,7 +1,7 @@
 use crate::util::join_url;
 use crate::{Error, Result};
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Key {
     Key(String),
     ArmoredKey(String),
@@ -18,7 +18,7 @@ impl Key {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Distro {
     url: String,
     name: Option<String>,
