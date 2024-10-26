@@ -13,8 +13,12 @@ keywords = ["apt", "debian", "deb", "linux"]
 categories = ["library", "development-tools"]
 
 [dependencies]
+assert_cmd = "2.0.16"
 chrono = { version = "0.4.38", features = ["serde"] }
+flate2 = "1.0.34"
 log = "0.4.22"
 pgp = "0.14.0"
+predicates = "3.1.2"
 regex = "1.11.0"
 reqwest = { version = "0.12.8", features = ["blocking"] }
+rust-lzma = "0.6.0"

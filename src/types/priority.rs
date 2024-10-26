@@ -20,7 +20,7 @@ impl Priority {
 
         if priority == "required" {
             return Ok(Priority::Required);
-        } else if priority == "mportant" {
+        } else if priority == "important" {
             return Ok(Priority::Important);
         } else if priority == "standard" {
             return Ok(Priority::Standard);

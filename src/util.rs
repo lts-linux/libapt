@@ -1,3 +1,7 @@
+use std::io::Read;
+
+use flate2::bufread::GzDecoder;
+use lzma;
 use reqwest::blocking::Client;
 
 use crate::{Error, Result};
@@ -7,9 +11,31 @@ pub fn download(url: &str) -> Result<String> {
     Ok(client
         .get(url)
         .send()
-        .map_err(Error::from_reqwest)?
+        .map_err(|e| Error::from_reqwest(e, url))?
         .text()
-        .map_err(Error::from_reqwest)?)
+        .map_err(|e| Error::from_reqwest(e, url))?)
+}
+
+pub fn download_compressed(url: &str) -> Result<String> {
+    let client = Client::new();
+    let result = client.get(url).send().map_err(|e| Error::from_reqwest(e, url))?;
+
+    let text = if url.ends_with(".xz") {
+        let data = result.bytes().map_err(|e| Error::from_reqwest(e, url))?;
+        let content = lzma::decompress(&data).map_err(|e| Error::from_lzma(e, url))?;
+        String::from_utf8_lossy(&content).to_string()
+    } else if url.ends_with(".gz") {
+        let data = result.bytes().map_err(|e| Error::from_reqwest(e, url))?;
+        let mut gz = GzDecoder::new(&data[..]);
+        let mut text = String::new();
+        gz.read_to_string(&mut text).map_err(|e| Error::from_io_error(e, url))?;
+        text
+    } else {
+        log::info!("No known extension, assuming plain text.");
+        result.text().map_err(|e| Error::from_reqwest(e, url))?
+    };
+
+    Ok(text)
 }
 
 pub fn join_url(base: &str, path: &str) -> String {

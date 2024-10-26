@@ -1,5 +1,8 @@
+use lzma;
 use reqwest;
 use std::fmt;
+use std::io;
+use std::string::FromUtf8Error;
 
 pub type Result<T> = std::result::Result<T, Error>;
 
@@ -50,10 +53,27 @@ impl Error {
         }
     }
 
-    pub fn from_reqwest(error: reqwest::Error) -> Error {
+    pub fn from_reqwest(error: reqwest::Error, url: &str) -> Error {
+        Error::from_error(&error, ErrorType::DownloadFailure, &url)
+    }
+
+    pub fn from_lzma(error: lzma::LzmaError, url: &str) -> Error {
+        Error::from_error(&error, ErrorType::DownloadFailure, &url)
+    }
+
+    pub fn from_io_error(error: io::Error, url: &str) -> Error {
+        Error::from_error(&error, ErrorType::DownloadFailure, &url)
+    }
+
+    pub fn from_utf8_error(error: FromUtf8Error, url: &str) -> Error {
+        Error::from_error(&error, ErrorType::DownloadFailure, &url)
+    }
+
+    pub fn from_error(error: &dyn std::error::Error, error_type: ErrorType, message: &str) -> Error {
+        let message = format!("{message}: {error}");
         Error {
-            message: Some(error.to_string()),
-            error_type: ErrorType::DownloadFailure,
+            message: Some(message),
+            error_type: error_type,
         }
     }
 

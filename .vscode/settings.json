@@ -3,9 +3,11 @@
         "Armhf",
         "chrono",
         "Cleartext",
+        "Codeberg",
         "distro",
         "dists",
         "inrelease",
+        "lzma",
         "reqwest",
         "rfind",
         "Riscv"

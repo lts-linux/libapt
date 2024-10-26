@@ -1,5 +1,5 @@
-use std::fmt;
 use crate::{Error, ErrorType, Result};
+use std::fmt;
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Copy)]
 pub enum Architecture {

@@ -3,11 +3,10 @@ use chrono::FixedOffset;
 use log::warn;
 use std::collections::HashMap;
 
+use crate::util::download_compressed;
 use crate::Architecture;
 use crate::Distro;
-use crate::{Error, ErrorType, Result, Package};
-use crate::util::join_url;
-
+use crate::{Error, ErrorType, Package, Result};
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum FileHash {
@@ -207,7 +206,7 @@ impl Release {
                             continue;
                         }
                     };
-                    let url = distro.url(&parts[2]);
+                    let url = distro.url(&parts[2], false);
                     let hash = match hash {
                         FileHash::Md5Sum(_) => FileHash::Md5Sum(parts[0].clone()),
                         FileHash::Sha1(_) => FileHash::Sha1(parts[0].clone()),
@@ -237,50 +236,87 @@ impl Release {
         }
 
         // init package map
-        for arch in &release.architectures { 
+        for arch in &release.architectures {
             release.packages.insert(arch.clone(), HashMap::new());
         }
 
         Ok(release)
     }
 
-    pub fn parse_components(&self) -> Result<()> {
-        for component in &self.components {
-            self.parse_component(component)?;
+    pub fn parse_components(&mut self) -> Result<()> {
+        let components = self.components.clone();
+        for component in components {
+            self.parse_component(&component)?;
         }
         Ok(())
     }
 
-    pub fn parse_component(&self, component: &str) -> Result<()> {
+    pub fn parse_component(&mut self, component: &str) -> Result<()> {
         // source packages
         self.parse_component_arch(component, &Architecture::Source)?;
 
         // binary packages
-        for arch in &self.architectures {
-            self.parse_component_arch(component, arch)?;
+        let architectures = self.architectures.clone();
+        for arch in architectures {
+            self.parse_component_arch(component, &arch)?;
         }
 
         Ok(())
     }
 
-    fn parse_component_arch(&self, component: &str, arch: &Architecture) -> Result<()> {
+    fn parse_component_arch(&mut self, component: &str, arch: &Architecture) -> Result<()> {
         let url = if arch == &Architecture::Source {
-            let path = format!("{component}/source/Sources");
-            self.distro.url(&path)
+            format!("{component}/source/Sources")
         } else {
             let arch_str = arch.to_string();
-            let path = format!("{component}/binary-{arch_str}/Packages");
-            self.distro.url(&path)
+            format!("{component}/binary-{arch_str}/Packages")
         };
-        let url = self.distro.url(&url);
 
-        let extensions = vec!["xz", "bz2", "gz", ""];
+        let url = self.distro.url(&url, false);
+
+        let extensions = vec![".xz", ".gz", ""];
         for ext in extensions {
-            let package_index = join_url(&url, &ext);
+            let package_index = url.to_string() + ext;
             if self.links.contains_key(&package_index) {
-                // TODO: download and parse package index.
+                self.parse_package_index(&package_index, &arch)?;
+                return Ok(());
             } else {
                 log::info!("Index {package_index} not found.");
+            }
+        }
+
+        Err(Error::new(
+            &format!(
+                "No matching package index found! component: {}, url: {}",
+                component, url
+            ),
+            ErrorType::DownloadFailure,
+        ))
+    }
+
+    fn parse_package_index(&mut self, url: &str, arch: &Architecture) -> Result<()> {
+        if arch == &Architecture::Source {
+            // TODO: fix
+            log::error!("Source package are not implemented!");
+            return Ok(());
+        }
+
+        let content = download_compressed(url)?;
+
+        for stanza in content.split("\n\n") {
+            let stanza = stanza.trim();
+            
+            if stanza.is_empty() {
+                continue;
+            }
+
+            let package = Package::from_stanza(stanza)?;
+            let pm = self.packages.get_mut(&arch).unwrap();
+            if pm.contains_key(&package.package) {
+                let pl = pm.get_mut(&package.package).unwrap();
+                pl.push(package);
+            } else {
+                pm.insert(package.package.clone(), vec![package]);
             }
         }
 
