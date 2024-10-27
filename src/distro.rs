@@ -1,8 +1,18 @@
-use crate::signature::verify_in_release;
-use crate::util::download;
-use crate::util::join_url;
-use crate::{Error, Release, Result};
+//! Struct Distro and related structs and enums.
 
+use crate::util::join_url;
+use crate::{Error, Result};
+
+/// The enum Key is used to wrap the apt repository verification key. 
+/// 
+/// A non-armored key is a _Key::Key_.
+/// Non-armored keys are used by apt and stored in `/etc/apt/trusted.gpg.d/`.
+/// 
+/// A armored key is a _Key::ArmoredKey_.
+/// Armored keys are typically used if a key is provided for download.
+/// 
+/// The type _Key::NoSignatureCheck_ can be used to skip the verification of
+/// the distribution index.
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Key {
     Key(String),
@@ -11,15 +21,28 @@ pub enum Key {
 }
 
 impl Key {
+    /// Wrap a new non-armored key location.
     pub fn key(url: &str) -> Key {
         Key::Key(url.to_string())
     }
 
+    /// Wrap a new armored key location.
     pub fn armored_key(url: &str) -> Key {
         Key::ArmoredKey(url.to_string())
     }
 }
 
+/// The Distro groups all information required to locate the
+/// distribution main index _InRelease_ file.
+/// 
+/// The struct can handle flat and default repositories.
+/// In case of a flat repository the _name_ is _None_ and the _path_ is used.
+/// In case of a default repository the _path_ is _None_ and the _name_ is used.
+/// 
+/// If _name_ and _path_ are none, the struct is invalid.
+/// 
+/// If a flat repo which makes not use of a subfolder, e.g. Suse Open Build Service,
+/// the path _./_ can be used, like in apt source lists.
 #[derive(Debug, Clone)]
 pub struct Distro {
     pub url: String,
@@ -29,6 +52,7 @@ pub struct Distro {
 }
 
 impl Distro {
+    /// Create a new default repo location description.
     pub fn repo(url: &str, name: &str, key: Key) -> Distro {
         Distro {
             url: url.to_string(),
@@ -38,6 +62,7 @@ impl Distro {
         }
     }
 
+    /// Create a new flat repo location description.
     pub fn flat_repo(url: &str, directory: &str, key: Key) -> Distro {
         Distro {
             url: url.to_string(),
@@ -47,6 +72,9 @@ impl Distro {
         }
     }
 
+    /// Get the URL of the _InRelease_ index file.
+    /// 
+    /// Returns an error if _name_ and _path_ are _None_.
     pub fn in_release_url(&self) -> Result<String> {
         if let Some(name) = &self.name {
             let url = join_url(&self.url, "dists");
@@ -65,6 +93,13 @@ impl Distro {
         }
     }
 
+    /// Create a URL using the given path.
+    /// 
+    /// This method can be used to get valid index urls when the _package_ flag is false.
+    /// In this case, the location of the _InRelease_ file is used as a base.
+    /// 
+    /// This method can be used to get valid package urls when the _package_ flag is true.
+    /// In this case, the root location is used as a base.
     pub fn url(&self, path: &str, package: bool) -> String {
         if package {
             join_url(&self.url, path)
@@ -79,16 +114,6 @@ impl Distro {
             };
             join_url(&self.url, &path)
         }
-    }
-
-    /// Parse the metadata of the given distro.
-    pub fn parse_distro(&self) -> Result<Release> {
-        let url = self.in_release_url()?;
-        let content = download(&url)?;
-        let content = verify_in_release(content, &self)?;
-        let release = Release::parse(&content, &self)?;
-
-        Ok(release)
     }
 }
 
@@ -192,25 +217,5 @@ mod tests {
             distro.key == Key::Key("http://archive.ubuntu.com/ubuntu/key.pub".to_string()),
             "distro key"
         );
-    }
-
-    #[test]
-    fn parse_ubuntu_jammy_release_file() {
-        let distro = Distro::repo(
-            "http://archive.ubuntu.com/ubuntu",
-            "jammy",
-            Key::NoSignatureCheck,
-        );
-
-        let mut release = distro.parse_distro().unwrap();
-
-        assert_eq!(release.origin, Some("Ubuntu".to_string()), "Origin");
-        assert_eq!(release.label, Some("Ubuntu".to_string()), "Label");
-        assert_eq!(release.suite, Some("jammy".to_string()), "Suite");
-        assert_eq!(release.codename, Some("jammy".to_string()), "Codename");
-        assert_eq!(release.version, Some("22.04".to_string()), "Version");
-        assert_eq!(release.acquire_by_hash, true, "Acquire-By-Hash");
-
-        release.parse_components().unwrap();
     }
 }

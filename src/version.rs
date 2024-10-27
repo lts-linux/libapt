@@ -1,3 +1,9 @@
+#[cfg(not(test))] 
+use log::error;
+
+#[cfg(test)]
+use std::println as error;
+
 use std::cmp::Ordering;
 use std::iter::zip;
 
@@ -50,7 +56,7 @@ impl Version {
                     Ok(epoch) => epoch,
                     Err(e) => {
                         let message = format!("Parse epoch error! {e}");
-                        log::error!("{}", &message);
+                        error!("{}", &message);
                         return Err(Error::new(&message, ErrorType::VerificationError));
                     }
                 };
@@ -289,7 +295,6 @@ mod tests {
     fn test_split_parts() {
         let version = "2.0.12";
         let parts = split_parts(version);
-        println!("{:?}", parts);
         assert_eq!(parts.len(), 5);
         assert_eq!(parts[0], "2");
         assert_eq!(parts[1], ".");

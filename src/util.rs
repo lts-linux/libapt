@@ -1,3 +1,9 @@
+#[cfg(not(test))] 
+use log::info;
+
+#[cfg(test)]
+use std::println as info;
+
 use std::io::Read;
 
 use flate2::bufread::GzDecoder;
@@ -31,7 +37,7 @@ pub fn download_compressed(url: &str) -> Result<String> {
         gz.read_to_string(&mut text).map_err(|e| Error::from_io_error(e, url))?;
         text
     } else {
-        log::info!("No known extension, assuming plain text.");
+        info!("No known extension, assuming plain text.");
         result.text().map_err(|e| Error::from_reqwest(e, url))?
     };
 

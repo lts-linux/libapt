@@ -16,6 +16,7 @@ pub enum ErrorType {
     UnknownPriority,
     InvalidPackageMeta,
     UnknownVersionRelation,
+    InvalidArchitecture,
 }
 
 #[derive(Debug, Clone)]
@@ -35,6 +36,7 @@ impl fmt::Display for Error {
             ErrorType::UnknownPriority => "Unknown priority",
             ErrorType::InvalidPackageMeta => "Invalid package metadata",
             ErrorType::UnknownVersionRelation => "Unknown package version relation",
+            ErrorType::InvalidArchitecture => "Not supported architecture",
         };
 
         if let Some(message) = &self.message {

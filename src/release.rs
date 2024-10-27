@@ -1,12 +1,18 @@
+#[cfg(not(test))] 
+use log::warn;
+
+#[cfg(test)]
+use std::println as warn;
+
 use chrono::DateTime;
 use chrono::FixedOffset;
-use log::warn;
 use std::collections::HashMap;
 
-use crate::util::download_compressed;
+use crate::util::download;
+use crate::signature::verify_in_release;
 use crate::Architecture;
 use crate::Distro;
-use crate::{Error, ErrorType, Package, Result};
+use crate::{Error, ErrorType, Result};
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum FileHash {
@@ -43,14 +49,10 @@ pub struct Release {
     pub signed_by: Vec<String>,
     pub changelogs: Option<String>,
     pub snapshots: Option<String>,
-    // internal data
-    distro: Distro,
-    // Component, Name, [Package, ...]
-    packages: HashMap<Architecture, HashMap<String, Vec<Package>>>,
 }
 
 impl Release {
-    pub fn new(distro: &Distro) -> Release {
+    fn new() -> Release {
         Release {
             hash: None,
             origin: None,
@@ -68,15 +70,20 @@ impl Release {
             signed_by: Vec::new(),
             changelogs: None,
             snapshots: None,
-            // internal data
-            distro: distro.clone(),
-            packages: HashMap::new(),
         }
     }
 
-    pub fn parse(content: &str, distro: &Distro) -> Result<Release> {
+    pub fn from_distro(distro: &Distro) -> Result<Release> {
+        // Get URL content.
+        let url = distro.in_release_url()?;
+        let content = download(&url)?;
+
+        // Verify signature.
+        let content = verify_in_release(content, distro)?;
+
+        // Parse content.
         let mut section = ReleaseSection::Keywords;
-        let mut release = Release::new(distro);
+        let mut release = Release::new();
 
         for line in content.lines() {
             if line.trim().is_empty() {
@@ -235,96 +242,34 @@ impl Release {
             }
         }
 
-        // init package map
-        for arch in &release.architectures {
-            release.packages.insert(arch.clone(), HashMap::new());
-        }
-
         Ok(release)
-    }
-
-    pub fn parse_components(&mut self) -> Result<()> {
-        let components = self.components.clone();
-        for component in components {
-            self.parse_component(&component)?;
-        }
-        Ok(())
-    }
-
-    pub fn parse_component(&mut self, component: &str) -> Result<()> {
-        // source packages
-        self.parse_component_arch(component, &Architecture::Source)?;
-
-        // binary packages
-        let architectures = self.architectures.clone();
-        for arch in architectures {
-            self.parse_component_arch(component, &arch)?;
-        }
-
-        Ok(())
-    }
-
-    fn parse_component_arch(&mut self, component: &str, arch: &Architecture) -> Result<()> {
-        let url = if arch == &Architecture::Source {
-            format!("{component}/source/Sources")
-        } else {
-            let arch_str = arch.to_string();
-            format!("{component}/binary-{arch_str}/Packages")
-        };
-
-        let url = self.distro.url(&url, false);
-
-        let extensions = vec![".xz", ".gz", ""];
-        for ext in extensions {
-            let package_index = url.to_string() + ext;
-            if self.links.contains_key(&package_index) {
-                self.parse_package_index(&package_index, &arch)?;
-                return Ok(());
-            } else {
-                log::info!("Index {package_index} not found.");
-            }
-        }
-
-        Err(Error::new(
-            &format!(
-                "No matching package index found! component: {}, url: {}",
-                component, url
-            ),
-            ErrorType::DownloadFailure,
-        ))
-    }
-
-    fn parse_package_index(&mut self, url: &str, arch: &Architecture) -> Result<()> {
-        if arch == &Architecture::Source {
-            // TODO: fix
-            log::error!("Source package are not implemented!");
-            return Ok(());
-        }
-
-        let content = download_compressed(url)?;
-
-        for stanza in content.split("\n\n") {
-            let stanza = stanza.trim();
-            
-            if stanza.is_empty() {
-                continue;
-            }
-
-            let package = Package::from_stanza(stanza)?;
-            let pm = self.packages.get_mut(&arch).unwrap();
-            if pm.contains_key(&package.package) {
-                let pl = pm.get_mut(&package.package).unwrap();
-                pl.push(package);
-            } else {
-                pm.insert(package.package.clone(), vec![package]);
-            }
-        }
-
-        Ok(())
     }
 }
 
 enum ReleaseSection {
     Keywords,
     Files(FileHash),
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{Key, Distro, Release};
+
+    #[test]
+    fn parse_ubuntu_jammy_release_file() {
+        let distro = Distro::repo(
+            "http://archive.ubuntu.com/ubuntu",
+            "jammy",
+            Key::NoSignatureCheck,
+        );
+
+        let release = Release::from_distro(&distro).unwrap();
+
+        assert_eq!(release.origin, Some("Ubuntu".to_string()), "Origin");
+        assert_eq!(release.label, Some("Ubuntu".to_string()), "Label");
+        assert_eq!(release.suite, Some("jammy".to_string()), "Suite");
+        assert_eq!(release.codename, Some("jammy".to_string()), "Codename");
+        assert_eq!(release.version, Some("22.04".to_string()), "Version");
+        assert_eq!(release.acquire_by_hash, true, "Acquire-By-Hash");
+   }
 }

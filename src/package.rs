@@ -1,6 +1,12 @@
+#[cfg(not(test))] 
+use log::error;
+
+#[cfg(test)]
+use std::println as error;
+
 use std::collections::HashMap;
 
-use crate::{Error, ErrorType, PackageVersion, Priority, Result, Version};
+use crate::{Distro, Error, ErrorType, PackageVersion, Priority, Result, Version};
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct Package {
@@ -80,14 +86,14 @@ impl Package {
         }
     }
 
-    pub fn from_stanza(stanza: &str) -> Result<Package> {
+    pub fn from_stanza(stanza: &str, distro: &Distro) -> Result<Package> {
         let kv = Package::parse_stanza(stanza);
 
         let name = match kv.get("package") {
             Some(name) => name,
             None => {
                 let message = format!("Invalid stanza, package missing!\n{stanza}");
-                log::error!("{}", &message);
+                error!("{}", &message);
                 return Err(Error::new(&message, ErrorType::InvalidPackageMeta));
             }
         };
@@ -96,7 +102,7 @@ impl Package {
             Some(version) => Version::from_str(version)?,
             None => {
                 let message = format!("Invalid stanza, version missing!\n{stanza}");
-                log::error!("{}", &message);
+                error!("{}", &message);
                 return Err(Error::new(&message, ErrorType::InvalidPackageMeta));
             }
         };
@@ -110,16 +116,18 @@ impl Package {
             })?,
             None => {
                 let message = format!("Invalid stanza, version missing!\n{stanza}");
-                log::error!("{}", &message);
+                error!("{}", &message);
                 return Err(Error::new(&message, ErrorType::InvalidPackageMeta));
             }
         };
 
         let filename = match kv.get("filename") {
-            Some(filename) => filename,
+            Some(filename) => {
+                distro.url(&filename, true)
+            },
             None => {
                 let message = format!("Invalid stanza, filename missing!\n{stanza}");
-                log::error!("{}", &message);
+                error!("{}", &message);
                 return Err(Error::new(&message, ErrorType::InvalidPackageMeta));
             }
         };
@@ -128,7 +136,7 @@ impl Package {
             Some(maintainer) => maintainer,
             None => {
                 let message = format!("Invalid stanza, maintainer missing!\n{stanza}");
-                log::error!("{}", &message);
+                error!("{}", &message);
                 return Err(Error::new(&message, ErrorType::InvalidPackageMeta));
             }
         };
@@ -137,12 +145,12 @@ impl Package {
             Some(description) => description,
             None => {
                 let message = format!("Invalid stanza, description missing!\n{stanza}");
-                log::error!("{}", &message);
+                error!("{}", &message);
                 return Err(Error::new(&message, ErrorType::InvalidPackageMeta));
             }
         };
 
-        let mut package = Package::new(name, version, size, filename, maintainer, description);
+        let mut package = Package::new(name, version, size, &filename, maintainer, description);
 
         match kv.get("source") {
             Some(source) => {
@@ -342,7 +350,7 @@ impl Package {
 
             if line.starts_with(' ') {
                 if key.is_empty() {
-                    log::error!("Continuation line found without keyword! {line}")
+                    error!("Continuation line found without keyword! {line}")
                 } else {
                     value += "\n";
                     value += line.trim();
@@ -358,7 +366,7 @@ impl Package {
                         value = line[(pos + 1)..].trim().to_string();
                     }
                     None => {
-                        log::error!("Invalid line: {line}")
+                        error!("Invalid line: {line}")
                     }
                 }
             }
@@ -374,10 +382,17 @@ impl Package {
 
 #[cfg(test)]
 mod tests {
+    use crate::Key;
     use super::*;
 
     #[test]
     fn parse_package() {
+        let distro = Distro::repo(
+            "http://archive.ubuntu.com/ubuntu",
+            "jammy",
+            Key::NoSignatureCheck,
+        );
+
         let stanza = r#"
 Package: linux-headers-5.15.0-1034-s32
 Source: linux-s32
@@ -398,7 +413,7 @@ Description: Linux kernel headers for version 5.15.0 on ARMv8 SMP
 Description-md5: 2ab472dd12387a67ae9ecbe0508146a7
 "#;
 
-        let package = Package::from_stanza(stanza).unwrap();
+        let package = Package::from_stanza(stanza, &distro).unwrap();
         assert_eq!(package.package, "linux-headers-5.15.0-1034-s32");
         assert_eq!(package.source, Some("linux-s32".to_string()));
         assert_eq!(package.priority, Some(Priority::Optional));
@@ -439,7 +454,7 @@ Description-md5: 2ab472dd12387a67ae9ecbe0508146a7
         );
         assert_eq!(
             package.filename,
-            "pool/main/l/linux-s32/linux-headers-5.15.0-1034-s32_5.15.0-1034.43_arm64.deb"
+            "http://archive.ubuntu.com/ubuntu/pool/main/l/linux-s32/linux-headers-5.15.0-1034-s32_5.15.0-1034.43_arm64.deb"
         );
         assert_eq!(package.size, 2794378);
         assert_eq!(

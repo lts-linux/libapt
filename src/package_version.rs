@@ -1,3 +1,9 @@
+#[cfg(not(test))] 
+use log::error;
+
+#[cfg(test)]
+use std::println as error;
+
 use crate::{Error, ErrorType, Result, Version};
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -47,7 +53,7 @@ impl PackageVersion {
         // TODO: fix
         let desc = match desc.find("|") {
             Some(pos) => {
-                log::error!("Alternative dependencies are not implemented!");
+                error!("Alternative dependencies are not implemented!");
                 desc[..pos].trim()
             },
             None => desc,

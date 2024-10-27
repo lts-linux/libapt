@@ -1,3 +1,9 @@
+#[cfg(not(test))] 
+use log::error;
+
+#[cfg(test)]
+use std::println as error;
+
 use std::collections::HashMap;
 
 use crate::{PackageVersion, Priority, Version, Result, Error, ErrorType};
@@ -86,7 +92,7 @@ impl Package {
             Some(name) => name,
             None => {
                 let message = format!("Invalid stanza, name missing!\n{stanza}");
-                log::error!("{}", &message);
+                error!("{}", &message);
                 return Err(Error::new(&message, ErrorType::InvalidPackageMeta));
             }
         };
@@ -95,7 +101,7 @@ impl Package {
             Some(version) => Version::from_str(version)?,
             None => {
                 let message = format!("Invalid stanza, version missing!\n{stanza}");
-                log::error!("{}", &message);
+                error!("{}", &message);
                 return Err(Error::new(&message, ErrorType::InvalidPackageMeta));
             }
         };
@@ -106,7 +112,7 @@ impl Package {
             )?,
             None => {
                 let message = format!("Invalid stanza, version missing!\n{stanza}");
-                log::error!("{}", &message);
+                error!("{}", &message);
                 return Err(Error::new(&message, ErrorType::InvalidPackageMeta));
             }
         };
@@ -115,7 +121,7 @@ impl Package {
             Some(filename) => filename,
             None => {
                 let message = format!("Invalid stanza, filename missing!\n{stanza}");
-                log::error!("{}", &message);
+                error!("{}", &message);
                 return Err(Error::new(&message, ErrorType::InvalidPackageMeta));
             }
         };
@@ -124,7 +130,7 @@ impl Package {
             Some(maintainer) => maintainer,
             None => {
                 let message = format!("Invalid stanza, maintainer missing!\n{stanza}");
-                log::error!("{}", &message);
+                error!("{}", &message);
                 return Err(Error::new(&message, ErrorType::InvalidPackageMeta));
             }
         };
@@ -133,7 +139,7 @@ impl Package {
             Some(description) => description,
             None => {
                 let message = format!("Invalid stanza, description missing!\n{stanza}");
-                log::error!("{}", &message);
+                error!("{}", &message);
                 return Err(Error::new(&message, ErrorType::InvalidPackageMeta));
             }
         };
@@ -336,7 +342,7 @@ impl Package {
 
             if line.starts_with(' ') {
                 if key.is_empty() {
-                    log::error!("Continuation line found without keyword! {line}")
+                    error!("Continuation line found without keyword! {line}")
                 } else {
                     value += "\n";
                     value += line.trim();
@@ -352,7 +358,7 @@ impl Package {
                         value = line[(pos+1)..].trim().to_string();
                     },
                     None => {
-                        log::error!("Invalid line: {line}")
+                        error!("Invalid line: {line}")
                     }
                 }
             }

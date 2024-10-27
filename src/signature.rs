@@ -1,4 +1,9 @@
-use log;
+#[cfg(not(test))] 
+use log::{error, info};
+
+#[cfg(test)]
+use std::{println as error, println as info};
+
 use pgp::cleartext::CleartextSignedMessage;
 use pgp::{Deserializable, SignedPublicKey};
 use std::fs::{self, File};
@@ -13,7 +18,7 @@ fn _get_key_content(url: &str) -> Result<String> {
             Ok(content) => Ok(content),
             Err(e) => {
                 let message = format!("Download of key {url} failed! {e}");
-                log::error!("{}", &message);
+                error!("{}", &message);
                 Err(Error::new(&message, crate::ErrorType::VerificationError))
             }
         }
@@ -22,7 +27,7 @@ fn _get_key_content(url: &str) -> Result<String> {
             Ok(content) => Ok(content),
             Err(e) => {
                 let message = format!("Reading key {url} failed! {e}");
-                log::error!("{}", &message);
+                error!("{}", &message);
                 Err(Error::new(&message, crate::ErrorType::VerificationError))
             }
         }
@@ -58,16 +63,16 @@ fn _get_key(distro: &Distro) -> Result<Option<SignedPublicKey>> {
             })?
         }
         Key::NoSignatureCheck => {
-            log::info!("No key for distro {:?}.", distro);
+            info!("No key for distro {:?}.", distro);
             return Ok(None);
         }
     };
 
     match key.verify() {
-        Ok(_) => log::info!("Public key for distro {:?} is OK!", distro),
+        Ok(_) => info!("Public key for distro {:?} is OK!", distro),
         Err(e) => {
             let message = format!("Public key for distro {:?} is NOT OK! {e}", distro);
-            log::error!("{}", &message);
+            error!("{}", &message);
             return Err(Error::new(&message, crate::ErrorType::VerificationError));
         }
     };
@@ -84,10 +89,10 @@ pub fn verify_in_release(content: String, distro: &Distro) -> Result<String> {
     let (inrelease, _headers_msg) = CleartextSignedMessage::from_string(&content).unwrap();
 
     match inrelease.verify(&key) {
-        Ok(_) => log::info!("InRelease signature for distro {:?} is OK!", distro),
+        Ok(_) => info!("InRelease signature for distro {:?} is OK!", distro),
         Err(e) => {
             let message = format!("InRelease signature for distro {:?} is NOT OK! {e}", distro);
-            log::error!("{}", &message);
+            error!("{}", &message);
             return Err(Error::new(&message, crate::ErrorType::VerificationError));
         }
     }

@@ -1,4 +1,4 @@
-use libapt::{Distro, Key};
+use libapt::{Distro, Key, Release};
 
 #[test]
 fn parse_ubuntu_jammy_release_file() {
@@ -8,7 +8,7 @@ fn parse_ubuntu_jammy_release_file() {
         Key::NoSignatureCheck,
     );
 
-    let release = distro.parse_distro().unwrap();
+    let release = Release::from_distro(&distro).unwrap();
 
     assert_eq!(release.origin, Some("Ubuntu".to_string()), "Origin");
     assert_eq!(release.label, Some("Ubuntu".to_string()), "Label");

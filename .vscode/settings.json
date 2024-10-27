@@ -1,15 +1,23 @@
 {
     "cSpell.words": [
         "Armhf",
+        "bufread",
         "chrono",
         "Cleartext",
         "Codeberg",
+        "devel",
         "distro",
         "dists",
+        "flate",
         "inrelease",
+        "libapt",
+        "libc",
+        "libelf",
         "lzma",
         "reqwest",
         "rfind",
-        "Riscv"
+        "Riscv",
+        "splitn",
+        "struct"
     ]
 }
