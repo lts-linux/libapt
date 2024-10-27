@@ -137,16 +137,17 @@ mod tests {
 
     #[test]
     fn flat_distro_in_release_url() {
+        let key = Key::key("http://archive.ubuntu.com/ubuntu/key.gpg");
+
         let distro = Distro::flat_repo(
             "http://archive.ubuntu.com/ubuntu",
             "path",
-            Key::Key("http://archive.ubuntu.com/ubuntu/key.pub".to_string()),
+            key,
         );
+
         let in_release = distro.in_release_url().unwrap();
-        assert!(
-            in_release == "http://archive.ubuntu.com/ubuntu/path/InRelease",
-            "InRelease url"
-        );
+
+        assert_eq!(in_release, "http://archive.ubuntu.com/ubuntu/path/InRelease");
     }
 
     #[test]
@@ -156,32 +157,27 @@ mod tests {
             "jammy",
             Key::NoSignatureCheck,
         );
-        assert!(
-            distro.url == "http://archive.ubuntu.com/ubuntu",
-            "distro url"
-        );
-        assert!(distro.name == Some("jammy".to_string()), "distro name");
-        assert!(distro.path == None, "distro path");
-        assert!(distro.key == Key::NoSignatureCheck, "distro key");
+
+        assert_eq!(distro.url, "http://archive.ubuntu.com/ubuntu");
+        assert_eq!(distro.name, Some("jammy".to_string()));
+        assert_eq!(distro.path, None, "distro path");
+        assert_eq!(distro.key, Key::NoSignatureCheck);
     }
 
     #[test]
     fn repo_key() {
+        let key = Key::armored_key("http://archive.ubuntu.com/ubuntu/key.pub");
+
         let distro = Distro::repo(
             "http://archive.ubuntu.com/ubuntu",
             "jammy",
-            Key::Key("http://archive.ubuntu.com/ubuntu/key.pub".to_string()),
+            key,
         );
-        assert!(
-            distro.url == "http://archive.ubuntu.com/ubuntu",
-            "distro url"
-        );
-        assert!(distro.name == Some("jammy".to_string()), "distro name");
-        assert!(distro.path == None, "distro path");
-        assert!(
-            distro.key == Key::Key("http://archive.ubuntu.com/ubuntu/key.pub".to_string()),
-            "distro key"
-        );
+
+        assert_eq!(distro.url, "http://archive.ubuntu.com/ubuntu");
+        assert_eq!(distro.name, Some("jammy".to_string()));
+        assert_eq!(distro.path, None);
+        assert_eq!(distro.key, Key::ArmoredKey("http://archive.ubuntu.com/ubuntu/key.pub".to_string()));
     }
 
     #[test]
@@ -191,31 +187,26 @@ mod tests {
             "./",
             Key::NoSignatureCheck,
         );
-        assert!(
-            distro.url == "http://archive.ubuntu.com/ubuntu",
-            "distro url"
-        );
-        assert!(distro.path == Some("./".to_string()), "distro name");
-        assert!(distro.name == None, "distro name");
-        assert!(distro.key == Key::NoSignatureCheck, "distro key");
+
+        assert_eq!(distro.url, "http://archive.ubuntu.com/ubuntu");
+        assert_eq!(distro.path, Some("./".to_string()));
+        assert_eq!(distro.name, None);
+        assert_eq!(distro.key, Key::NoSignatureCheck);
     }
 
     #[test]
     fn flat_repo_key() {
+        let key = Key::armored_key("http://archive.ubuntu.com/ubuntu/key.pub");
+
         let distro = Distro::flat_repo(
             "http://archive.ubuntu.com/ubuntu",
             "path",
-            Key::Key("http://archive.ubuntu.com/ubuntu/key.pub".to_string()),
+            key,
         );
-        assert!(
-            distro.url == "http://archive.ubuntu.com/ubuntu",
-            "distro url"
-        );
-        assert!(distro.path == Some("path".to_string()), "distro name");
-        assert!(distro.name == None, "distro name");
-        assert!(
-            distro.key == Key::Key("http://archive.ubuntu.com/ubuntu/key.pub".to_string()),
-            "distro key"
-        );
+
+        assert_eq!(distro.url, "http://archive.ubuntu.com/ubuntu");
+        assert_eq!(distro.path, Some("path".to_string()));
+        assert_eq!(distro.name, None);
+        assert_eq!(distro.key, Key::ArmoredKey("http://archive.ubuntu.com/ubuntu/key.pub".to_string()));
     }
 }

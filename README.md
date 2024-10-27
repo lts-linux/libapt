@@ -81,18 +81,20 @@ If no verification is wanted, the value _Key::NoSignatureCheck_ can be provided.
 ```rust
 use libapt::{Distro, Key};
 
+let key = Key::key("https://keyserver.ubuntu.com/pks/lookup?op=get&search=0xba6932366a755776");
+
 // Default repository format using a public key form an URL.
 let distro = Distro::repo(
     "http://archive.ubuntu.com/ubuntu",
     "jammy",
-    Key::Key("https://keyserver.ubuntu.com/pks/lookup?op=get&search=0xba6932366a755776".to_string()),
+    key.clone(),
 );
 
 // Flat repository format using a public key form an URL.
 let distro = Distro::flat_repo(
     "http://archive.ubuntu.com/ubuntu",
     "dists/jammy",
-    Key::Key("https://keyserver.ubuntu.com/pks/lookup?op=get&search=0xba6932366a755776".to_string()),
+    key.clone(),
 );
 
 // Flat repo skipping verification.
