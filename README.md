@@ -2,7 +2,7 @@
 
 Libapt is a pure Rust apt library.
 
-You can find the sources at [Codeberg](https://codeberg.org/tomirgang/libapt).
+You can find the sources at [Codeberg](https://codeberg.org/tomirgang/libapt) and [Github](https://github.com/lts-linux/libapt).
 
 ## Architecture
 
@@ -108,6 +108,9 @@ let distro = Distro::flat_repo(
 ## Limitations
 
 - Apt repositories providing only the old _Release_ with detached _Release.gpg_ signature are not supported.
+- Host dependencies on Ubuntu Linux:
+    - rust-lzma requires _liblzma-dev_ and _pkg-config_
+    - reqwest requires _libssl-dev_
 
 ## Usage
 

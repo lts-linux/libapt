@@ -1,3 +1,5 @@
+//! Implementation of the InRelease file parsing.
+
 #[cfg(not(test))] 
 use log::warn;
 
@@ -14,6 +16,9 @@ use crate::Architecture;
 use crate::Distro;
 use crate::{Error, ErrorType, Result};
 
+/// Wrapper for file hashes.
+/// 
+/// The FileHash enum can wrap MD5, SHA1, SHA256 and SHA512 hashes.
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum FileHash {
     Md5Sum(String),
@@ -22,6 +27,9 @@ pub enum FileHash {
     Sha512(String),
 }
 
+/// Link represents a file referenced from InRelease.
+/// 
+/// This type is used to group all hashes for a referenced path.
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Link {
     pub url: String,
@@ -29,10 +37,14 @@ pub struct Link {
     pub hashes: Vec<FileHash>,
 }
 
+/// The Release struct groups all data from the InRelease file.
+/// 
+/// When the InRelease file is parsed, all specified values from
+/// https://wiki.debian.org/DebianRepository/Format#A.22Release.22_files
+/// are considered.
 #[derive(Debug)]
 pub struct Release {
     // fields from apt release file
-    // see https://wiki.debian.org/DebianRepository/Format#A.22Release.22_files
     hash: Option<String>,
     pub origin: Option<String>,
     pub label: Option<String>,

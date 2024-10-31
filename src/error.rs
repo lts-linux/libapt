@@ -1,11 +1,15 @@
+//! Error and Result types.
+
 use lzma;
 use reqwest;
+use reqwest::header::ToStrError;
 use std::fmt;
 use std::io;
 use std::string::FromUtf8Error;
 
 pub type Result<T> = std::result::Result<T, Error>;
 
+/// The ErrorTypes provide a rough classification of the errors.
 #[derive(Debug, Clone)]
 pub enum ErrorType {
     DownloadFailure,
@@ -19,6 +23,7 @@ pub enum ErrorType {
     InvalidArchitecture,
 }
 
+/// Libapt error type.
 #[derive(Debug, Clone)]
 pub struct Error {
     message: Option<String>,
@@ -56,6 +61,10 @@ impl Error {
     }
 
     pub fn from_reqwest(error: reqwest::Error, url: &str) -> Error {
+        Error::from_error(&error, ErrorType::DownloadFailure, &url)
+    }
+
+    pub fn from_to_str_error(error: ToStrError, url: &str) -> Error {
         Error::from_error(&error, ErrorType::DownloadFailure, &url)
     }
 

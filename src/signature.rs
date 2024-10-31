@@ -1,3 +1,5 @@
+//! GPG signature verification.
+
 #[cfg(not(test))] 
 use log::{error, info};
 
@@ -12,6 +14,11 @@ use std::io::BufReader;
 use crate::util::download;
 use crate::{Distro, Error, Key, Result};
 
+
+/// Get the content of an armored key as string.
+/// 
+/// If the given url starts with http a download is tried,
+/// else the url is interpreted as local file path.
 fn _get_key_content(url: &str) -> Result<String> {
     if url.starts_with("http") {
         match download(&url) {
@@ -34,6 +41,7 @@ fn _get_key_content(url: &str) -> Result<String> {
     }
 }
 
+/// Get the signing key for the given Distro.
 fn _get_key(distro: &Distro) -> Result<Option<SignedPublicKey>> {
     let key = match &distro.key {
         Key::ArmoredKey(url) => {
@@ -80,6 +88,10 @@ fn _get_key(distro: &Distro) -> Result<Option<SignedPublicKey>> {
     Ok(Some(key))
 }
 
+/// Verify the signature of the InRelease file.
+/// 
+/// The full content of the inline signed file is given as content.
+/// The given Distro is used to specify the signing key.
 pub fn verify_in_release(content: String, distro: &Distro) -> Result<String> {
     let key = match _get_key(distro)? {
         Some(key) => key,

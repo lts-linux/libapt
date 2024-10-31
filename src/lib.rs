@@ -12,9 +12,7 @@ mod types;
 mod util;
 mod version;
 
-/// Debian distribution specification
 pub use distro::Distro;
-
 pub use distro::Key;
 pub use error::{Error, ErrorType, Result};
 pub use package::Package;

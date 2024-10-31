@@ -1,3 +1,5 @@
+//! Helper functions.
+
 #[cfg(not(test))] 
 use log::info;
 
@@ -12,6 +14,35 @@ use reqwest::blocking::Client;
 
 use crate::{Error, Result};
 
+/// Get the timestamp when the URL was last modified.
+pub fn get_etag(url: &str) -> Result<String> {
+    let client = Client::new();
+    let response = client
+        .head(url)
+        .send()
+        .map_err(|e| Error::from_reqwest(e, url))?;
+
+    if !response.status().is_success() {
+        return Err(Error::new(
+            &format!("Url {url} download failed!"),
+            crate::ErrorType::DownloadFailure));
+    }
+
+    let etag = match response.headers().get("etag") {
+        Some(etag) => etag,
+        None => {
+            return Err(Error::new(
+                &format!("No etag found in header of {url}!"),
+                crate::ErrorType::DownloadFailure));
+        },
+    };
+
+    let etag = etag.to_str().map_err(|e| Error::from_to_str_error(e, url))?;
+    
+    Ok(etag.to_string())
+}
+
+/// Download the content of the given URL as a String.
 pub fn download(url: &str) -> Result<String> {
     let client = Client::new();
     Ok(client
@@ -22,6 +53,11 @@ pub fn download(url: &str) -> Result<String> {
         .map_err(|e| Error::from_reqwest(e, url))?)
 }
 
+/// Download and decompress the content of the given URL as a String.
+/// 
+/// The compression type is guessed using the extension.
+/// Known extensions are "xz" and "gz".
+/// In case of an unknown extension, no compression is guessed.
 pub fn download_compressed(url: &str) -> Result<String> {
     let client = Client::new();
     let result = client.get(url).send().map_err(|e| Error::from_reqwest(e, url))?;
@@ -44,6 +80,9 @@ pub fn download_compressed(url: &str) -> Result<String> {
     Ok(text)
 }
 
+/// Join a base URL with a path string.
+/// 
+/// The string "./" is ignored.
 pub fn join_url(base: &str, path: &str) -> String {
     let url: String = if base.ends_with("/") {
         base.to_string()
@@ -90,5 +129,16 @@ mod tests {
             url == "http://archive.ubuntu.com/ubuntu",
             "base doesn't end with slash"
         );
+    }
+
+    #[test]
+    fn test_get_etag() {
+        let etag = get_etag("http://archive.ubuntu.com/ubuntu/dists/noble/InRelease").unwrap();
+        println!("etag: {etag}");
+
+        match get_etag("http://archive.ubuntu.com/ubuntu/dists/norbert/InRelease") {
+            Ok(_) => assert!(false), // No etag for invalid url.
+            Err(_) => {},
+        };
     }
 }
