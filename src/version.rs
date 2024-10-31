@@ -157,7 +157,7 @@ impl Version {
         Version::compare_version_str(self_revision, other_revision)
     }
 
-    /// Implementation of the version and revision comparision.
+    /// Implementation of the version and revision comparison.
     fn compare_version_str(self_version: &str, other_version: &str) -> Ordering {
         if self_version == other_version {
             return Ordering::Equal;
