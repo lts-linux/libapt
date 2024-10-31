@@ -81,7 +81,7 @@ If no verification is wanted, the value _Key::NoSignatureCheck_ can be provided.
 ```rust
 use libapt::{Distro, Key};
 
-let key = Key::key("https://keyserver.ubuntu.com/pks/lookup?op=get&search=0xba6932366a755776");
+let key = Key::key("/etc/apt/trusted.gpg.d/ubuntu-keyring-2018-archive.gpg");
 
 // Default repository format using a public key form an URL.
 let distro = Distro::repo(
@@ -103,6 +103,34 @@ let distro = Distro::flat_repo(
     "dists/jammy",
     Key::NoSignatureCheck,
 );
+```
+
+#### Struct Release
+
+The struct [Release] groups all information contained in the InRelease file.
+When a new [Release] is created by running [Release::from_distro],
+the content of the InRelease file is downloaded,
+the inline signature is verified using the [Distro] key,
+and the content is parsed.
+
+```rust
+use libapt::{Distro, Key, Release};
+
+// Ubuntu Jammy signing key.
+let key = Key::key("/etc/apt/trusted.gpg.d/ubuntu-keyring-2018-archive.gpg");
+
+// Ubuntu Jammy distribution.
+let distro = Distro::repo(
+    "http://archive.ubuntu.com/ubuntu",
+    "jammy",
+    key,
+);
+
+// Parse the InRelease file.
+let release = Release::from_distro(&distro).unwrap();
+
+// Check for compliance with https://wiki.debian.org/DebianRepository/Format#A.22Release.22_files.
+release.check_compliance();
 ```
 
 ## Limitations

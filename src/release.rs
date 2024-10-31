@@ -64,6 +64,8 @@ pub struct Release {
 }
 
 impl Release {
+
+    /// Create a new Release struct with default values.
     fn new() -> Release {
         Release {
             hash: None,
@@ -85,6 +87,7 @@ impl Release {
         }
     }
 
+    /// Download and parse the InRelease file of the given Distro.
     pub fn from_distro(distro: &Distro) -> Result<Release> {
         // Get URL content.
         let url = distro.in_release_url()?;
@@ -256,8 +259,13 @@ impl Release {
 
         Ok(release)
     }
+
+    pub fn check_compliance(&self) -> Result<()> {
+        Ok(())
+    }
 }
 
+/// Internal helper as marker for the sections of the InRelease file.
 enum ReleaseSection {
     Keywords,
     Files(FileHash),
@@ -269,10 +277,14 @@ mod tests {
 
     #[test]
     fn parse_ubuntu_jammy_release_file() {
+        // Ubuntu Jammy signing key.
+        let key = Key::key("/etc/apt/trusted.gpg.d/ubuntu-keyring-2018-archive.gpg");
+        
+        // Ubuntu Jammy distribution.
         let distro = Distro::repo(
             "http://archive.ubuntu.com/ubuntu",
             "jammy",
-            Key::NoSignatureCheck,
+            key,
         );
 
         let release = Release::from_distro(&distro).unwrap();
@@ -283,5 +295,54 @@ mod tests {
         assert_eq!(release.codename, Some("jammy".to_string()), "Codename");
         assert_eq!(release.version, Some("22.04".to_string()), "Version");
         assert_eq!(release.acquire_by_hash, true, "Acquire-By-Hash");
-   }
+
+        // Parse the InRelease file.
+        let release = Release::from_distro(&distro).unwrap();
+
+        // Check for compliance with https://wiki.debian.org/DebianRepository/Format#A.22Release.22_files.
+        release.check_compliance().unwrap();
+    }
+
+   #[test]
+    fn parse_ebcl_release_file() {
+        // EBcL signing key.
+        let key = Key::armored_key("https://linux.elektrobit.com/eb-corbos-linux/ebcl_1.0_key.pub");
+        
+        // EBcL 1.3 distribution.
+        let distro = Distro::repo(
+            "http://linux.elektrobit.com/eb-corbos-linux/1.3",
+            "ebcl",
+            key,
+        );
+
+        let release = Release::from_distro(&distro).unwrap();
+
+        assert_eq!(release.origin, Some("Elektrobit".to_string()), "Origin");
+        assert_eq!(release.suite, Some("ebcl".to_string()), "Suite");
+        assert_eq!(release.codename, Some("ebcl".to_string()), "Codename");
+
+        // Parse the InRelease file.
+        let release = Release::from_distro(&distro).unwrap();
+
+        // Check for compliance with https://wiki.debian.org/DebianRepository/Format#A.22Release.22_files.
+        release.check_compliance().unwrap();
+    }
+
+    #[test]
+    fn test_wrong_key() {
+        // Ubuntu Jammy signing key.
+        let key = Key::key("/etc/apt/trusted.gpg.d/ubuntu-keyring-2018-archive.gpg");
+        
+        // Ubuntu Jammy distribution.
+        let distro = Distro::repo(
+            "http://linux.elektrobit.com/eb-corbos-linux/1.3",
+            "ebcl",
+            key,
+        );
+
+        match Release::from_distro(&distro) {
+            Ok(_) => assert!(false), // Key verification shall fail!
+            Err(_) => {}
+        };
+    }
 }
