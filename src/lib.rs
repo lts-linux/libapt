@@ -18,7 +18,7 @@ pub use error::{Error, ErrorType, Result};
 pub use package::Package;
 pub use package_index::PackageIndex;
 pub use package_version::{PackageVersion, VersionRelation};
-pub use release::{FileHash, Release};
+pub use release::Release;
 pub use types::architecture::Architecture;
 pub use types::priority::Priority;
 pub use version::Version;

@@ -16,17 +16,6 @@ use crate::Architecture;
 use crate::Distro;
 use crate::{Error, ErrorType, Result};
 
-/// Wrapper for file hashes.
-/// 
-/// The FileHash enum can wrap MD5, SHA1, SHA256 and SHA512 hashes.
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub enum FileHash {
-    Md5Sum(String),
-    Sha1(String),
-    Sha256(String),
-    Sha512(String),
-}
-
 /// Link represents a file referenced from InRelease.
 /// 
 /// This type is used to group all hashes for a referenced path.
@@ -34,13 +23,16 @@ pub enum FileHash {
 pub struct Link {
     pub url: String,
     pub size: usize,
-    pub hashes: Vec<FileHash>,
+    pub md5: Option<String>,
+    pub sha1: Option<String>,
+    pub sha256: Option<String>,
+    pub sha512: Option<String>,
 }
 
 /// The Release struct groups all data from the InRelease file.
 /// 
 /// When the InRelease file is parsed, all specified values from
-/// https://wiki.debian.org/DebianRepository/Format#A.22Release.22_files
+/// [Debian Wiki InRelease specification](https://wiki.debian.org/DebianRepository/Format#A.22Release.22_files)
 /// are considered.
 #[derive(Debug)]
 pub struct Release {
@@ -198,18 +190,18 @@ impl Release {
                             .map(|e| e.trim().to_string())
                             .collect();
                     } else if keyword == "md5sum" {
-                        section = ReleaseSection::Files(FileHash::Md5Sum("".to_string()));
+                        section = ReleaseSection::HashMD5;
                     } else if keyword == "sha1" {
-                        section = ReleaseSection::Files(FileHash::Sha1("".to_string()));
+                        section = ReleaseSection::HashSHA1;
                     } else if keyword == "sha256" {
-                        section = ReleaseSection::Files(FileHash::Sha256("".to_string()));
+                        section = ReleaseSection::HashSHA256;
                     } else if keyword == "sha512" {
-                        section = ReleaseSection::Files(FileHash::Sha512("".to_string()));
+                        section = ReleaseSection::HashSHA512;
                     } else {
                         warn!("Unknown keyword: {keyword} of line {line}!");
                     }
                 }
-                ReleaseSection::Files(hash) => {
+                section => {
                     let parts: Vec<String> = line
                         .split(" ")
                         .filter(|e| !e.trim().is_empty())
@@ -229,30 +221,35 @@ impl Release {
                         }
                     };
                     let url = distro.url(&parts[2], false);
-                    let hash = match hash {
-                        FileHash::Md5Sum(_) => FileHash::Md5Sum(parts[0].clone()),
-                        FileHash::Sha1(_) => FileHash::Sha1(parts[0].clone()),
-                        FileHash::Sha256(_) => FileHash::Sha256(parts[0].clone()),
-                        FileHash::Sha512(_) => FileHash::Sha512(parts[0].clone()),
-                    };
 
-                    if release.links.contains_key(&url) {
-                        let link = release.links.get_mut(&url).unwrap();
-                        if link.size != size {
-                            let link_size = link.size;
-                            warn!("Size mismatch for {url}! {link_size} != {size}")
-                        }
-                        link.hashes.push(hash);
-                    } else {
+                    if !release.links.contains_key(&url) {
+                        let link = Link {
+                            url: url.clone(),
+                            size: size,
+                            md5: None,
+                            sha1: None,
+                            sha256: None,
+                            sha512: None
+                        };
                         release.links.insert(
                             url.clone(),
-                            Link {
-                                url: url,
-                                size: size,
-                                hashes: vec![hash],
-                            },
+                            link,
                         );
                     }
+
+                    let link = release.links.get_mut(&url).unwrap();
+                    if link.size != size {
+                        let link_size = link.size;
+                        warn!("Size mismatch for {}! {link_size} != {size}", &url)
+                    }
+
+                    match section {
+                        ReleaseSection::HashMD5 => {link.md5 =  Some(parts[0].clone())},
+                        ReleaseSection::HashSHA1 => {link.sha1 =  Some(parts[0].clone())},
+                        ReleaseSection::HashSHA256 => {link.sha256 =  Some(parts[0].clone())},
+                        ReleaseSection::HashSHA512 => {link.sha512 =  Some(parts[0].clone())},
+                        _ => {}
+                    };
                 }
             }
         }
@@ -287,11 +284,7 @@ impl Release {
 
         for key in self.links.keys() {
             let link = self.links.get(key).unwrap();
-            let sha256_hash = link.hashes.iter().any(|fh| match fh {
-                FileHash::Sha256(_) => true,
-                _ => false,
-            });
-            if !sha256_hash {
+            if link.sha256 == None {
                 return Err(Error::new(
                     &format!("No SHA256 hash provided for URL {key}."), 
                     ErrorType::InvalidReleaseFormat));
@@ -305,7 +298,10 @@ impl Release {
 /// Internal helper as marker for the sections of the InRelease file.
 enum ReleaseSection {
     Keywords,
-    Files(FileHash),
+    HashMD5,
+    HashSHA1,
+    HashSHA256,
+    HashSHA512,
 }
 
 #[cfg(test)]

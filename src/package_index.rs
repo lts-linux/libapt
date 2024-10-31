@@ -1,3 +1,5 @@
+//! Implementation of the package index parsing.
+
 #[cfg(not(test))] 
 use log::info;
 
@@ -10,17 +12,18 @@ use crate::{release::Link, Architecture, Distro, Package, Release, VersionRelati
 pub use crate::{Error, ErrorType, Result};
 use crate::util::download_compressed;
 
+/// A PackageIndex is a set of packages for a specific architecture and component.
 pub struct PackageIndex {
+    /// Architecture of the packages.
     pub architecture: Architecture,
+    /// Map of packages, key is the package name.
+    /// Vec is used to handle the case of different package versions.
     package_map: HashMap<String, Vec<Package>>,
 }
 
 impl PackageIndex {
+    /// Parse a package index.
     pub fn new(distro: &Distro, release: &Release, component: &str, architecture: &Architecture) -> Result<PackageIndex> {
-        if architecture == &Architecture::Source {
-            return Err(Error::new("Source packages are not supported by PackageIndex type!", ErrorType::InvalidArchitecture));
-        }
-
         let mut package_index = PackageIndex {
             architecture: architecture.clone(),
             package_map: HashMap::new(),
@@ -39,6 +42,10 @@ impl PackageIndex {
         Ok(package_index)
     }
 
+    /// Download, verify and parse the package index.
+    /// 
+    /// Find the matching Link and call parse_index.
+    /// The Link is required to verify the hash.
     fn parse(&mut self, url: &str, distro: &Distro, release: &Release) -> Result<()> {
         // Supported compression extensions, try form best to no compression
         let extensions = vec![".xz", ".gz", ""];
@@ -68,9 +75,7 @@ impl PackageIndex {
     }
 
     fn parse_index(&mut self, link: &Link, distro: &Distro) -> Result<()> {
-        let content = download_compressed(&link.url)?;
-
-        // TODO: verify checksum!
+        let content = download_compressed(&link)?;
 
         for stanza in content.split("\n\n") {
             let stanza = stanza.trim();

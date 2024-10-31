@@ -17,8 +17,11 @@ assert_cmd = "2.0.16"
 chrono = { version = "0.4.38", features = ["serde"] }
 flate2 = "1.0.34"
 log = "0.4.22"
+md5 = "0.7.0"
 pgp = "0.14.0"
 predicates = "3.1.2"
 regex = "1.11.0"
 reqwest = { version = "0.12.8", features = ["blocking"] }
 rust-lzma = "0.6.0"
+sha1 = "0.10.6"
+sha2 = "0.10.8"
