@@ -319,20 +319,15 @@ impl Package {
     }
 
     fn parse_package_relation(depends: &str) -> Result<Vec<PackageVersion>> {
-        let pvs: Vec<Result<PackageVersion>> = depends
+        let pvs: Result<Vec<Vec<PackageVersion>>> = depends
             .split(",")
             .map(|p| p.trim())
             .map(|p| PackageVersion::from_str(p))
             .collect();
+        let pvs = pvs?;
+        let pvs: Vec<PackageVersion> = pvs.iter().flatten().map(|pv| pv.clone()).collect();
 
-        let mut result: Vec<PackageVersion> = Vec::new();
-
-        for pv in pvs {
-            let pv = pv?;
-            result.push(pv);
-        }
-
-        Ok(result)
+        Ok(pvs)
     }
 
     fn parse_stanza(stanza: &str) -> HashMap<String, String> {

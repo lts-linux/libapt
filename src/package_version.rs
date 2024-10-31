@@ -1,5 +1,8 @@
+//! Implementation of package version dependencies.
+
 use crate::{Error, ErrorType, Result, Version};
 
+/// A VersionRelation describes the relation between two package versions.
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
 pub enum VersionRelation {
     StrictSmaller,
@@ -10,6 +13,7 @@ pub enum VersionRelation {
 }
 
 impl VersionRelation {
+    /// Crate a new VersionRelation from it's string representation.
     pub fn from_str(relation: &str) -> Result<VersionRelation> {
         let relation = relation.to_lowercase();
         let relation = relation.trim();
@@ -32,6 +36,7 @@ impl VersionRelation {
         ))
     }
 
+    /// Test if the versions fulfill the relation.
     pub fn matches(&self, a: &Version, b: &Version) -> bool {
         match &self {
             VersionRelation::StrictSmaller => a < b,
@@ -43,6 +48,7 @@ impl VersionRelation {
     }
 }
 
+/// A PackageVersion describes a package version dependency.
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
 pub struct PackageVersion {
     pub name: String,
@@ -51,18 +57,22 @@ pub struct PackageVersion {
 }
 
 impl PackageVersion {
-    pub fn from_str(desc: &str) -> Result<PackageVersion> {
+    /// Create a PackageVersion from it's string representation.
+    pub fn from_str(desc: &str) -> Result<Vec<PackageVersion>> {
         let desc = desc.trim();
 
-        // TODO: fix
-        let desc = match desc.find("|") {
-            Some(pos) => {
-                // TODO: Alternative dependencies are not implemented
-                desc[..pos].trim()
-            }
-            None => desc,
-        };
+        let alternatives: Vec<&str> = desc.split("|").map(|p| p.trim()).collect();
 
+        let result: Result<Vec<PackageVersion>> = alternatives
+            .iter()
+            .map(|d| PackageVersion::single_form_str(d))
+            .collect();
+
+        Ok(result?)
+    }
+
+    /// Parse a single package version from string.
+    fn single_form_str(desc: &str) -> Result<PackageVersion> {
         let (name, relation, version) = match desc.find(' ') {
             Some(pos) => {
                 let name = &desc[..pos];
@@ -95,6 +105,7 @@ impl PackageVersion {
         })
     }
 
+    /// Check if the given package version matches the requirement.
     pub fn matches(&self, package_version: &Version) -> bool {
         if let Some(version) = &self.version {
             let relation = match &self.relation {
@@ -120,6 +131,7 @@ mod tests {
     #[test]
     fn test_package_version() {
         let pv = PackageVersion::from_str("libssl3 (>= 3.0.0~~alpha1)").unwrap();
+        let pv = &pv[0];
         assert_eq!(pv.name, "libssl3");
         assert_eq!(
             pv.version,
@@ -139,11 +151,13 @@ mod tests {
         ];
 
         let pv = PackageVersion::from_str(relations[0]).unwrap();
+        let pv = &pv[0];
         assert_eq!(pv.name, "linux-s32-headers-5.15.0-1026");
         assert_eq!(pv.relation, None);
         assert_eq!(pv.version, None);
 
         let pv = PackageVersion::from_str(relations[1]).unwrap();
+        let pv = pv[0].clone();
         assert_eq!(pv.name, "libc6");
         assert_eq!(pv.relation.unwrap(), VersionRelation::Larger);
         let version = pv.version.unwrap();
@@ -152,6 +166,7 @@ mod tests {
         assert_eq!(version.revision, None);
 
         let pv = PackageVersion::from_str(relations[2]).unwrap();
+        let pv = pv[0].clone();
         assert_eq!(pv.name, "libelf1");
         assert_eq!(pv.relation.unwrap(), VersionRelation::Larger);
         let version = pv.version.unwrap();
@@ -160,6 +175,7 @@ mod tests {
         assert_eq!(version.revision, None);
 
         let pv = PackageVersion::from_str(relations[3]).unwrap();
+        let pv = pv[0].clone();
         assert_eq!(pv.name, "libssl3");
         assert_eq!(pv.relation.unwrap(), VersionRelation::Larger);
         let version = pv.version.unwrap();
@@ -168,6 +184,7 @@ mod tests {
         assert_eq!(version.revision, None);
 
         let pv = PackageVersion::from_str(relations[4]).unwrap();
+        let pv = pv[0].clone();
         assert_eq!(pv.name, "zlib1g");
         assert_eq!(pv.relation.unwrap(), VersionRelation::Larger);
         let version = pv.version.unwrap();
@@ -218,10 +235,21 @@ mod tests {
         let c = Version::from_str("3.0.0~~alpha0").unwrap();
 
         let pv = PackageVersion::from_str("libssl3 (>= 3.0.0~~alpha1)").unwrap();
+        let pv = pv[0].clone();
         println!("PackageVersion: {:?}", pv);
         println!("Version a: {:?}", a);
         assert!(pv.matches(&a));
         assert!(pv.matches(&b));
         assert!(!pv.matches(&c));
+    }
+
+    #[test]
+    fn test_package_version_alternatives() {
+        let desc = "linux-s32-headers-5.15.0-1026 | libc6 (>= 2.34) | libelf1 (>= 0.142)";
+        let pvs = PackageVersion::from_str(desc).unwrap();
+        assert_eq!(pvs.len(), 3);
+        assert_eq!(pvs[0].name, "linux-s32-headers-5.15.0-1026");
+        assert_eq!(pvs[1].name, "libc6");
+        assert_eq!(pvs[2].name, "libelf1");
     }
 }
