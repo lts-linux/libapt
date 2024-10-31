@@ -1,5 +1,5 @@
 //! Implementation of the package types and parsing.
-//! 
+//!
 #[cfg(not(test))]
 use log::error;
 
@@ -10,13 +10,12 @@ use std::{cmp::Ordering, collections::HashMap};
 
 use crate::{Architecture, Distro, Error, ErrorType, PackageVersion, Priority, Result, Version};
 
-
 /// The Package struct groups all data about a package.
 ///
 /// When the package index file is parsed, all specified values from
 /// [Debian Wiki Package Indices specification](https://wiki.debian.org/DebianRepository/Format#A.22Packages.22_Indices)
 /// are considered.
-/// For parsing the single entries the 
+/// For parsing the single entries the
 /// [Debian Wiki Binary Package specification](https://www.debian.org/doc/debian-policy/ch-controlfields.html#debian-binary-package-control-files-debian-control)
 /// is used as a base.
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -55,7 +54,6 @@ pub struct Package {
 }
 
 impl Package {
-
     /// New struct with default values.
     pub fn new(
         package: &str,

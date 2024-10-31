@@ -1,3 +1,5 @@
+//! Implementation of package versions.
+//!
 #[cfg(not(test))]
 use log::error;
 
@@ -9,6 +11,9 @@ use std::iter::zip;
 
 use crate::{Error, ErrorType, Result};
 
+/// Split a Debian package version or revision into parts.
+///
+/// Parts are either sequences for numbers, separators or characters.
 fn split_parts(version: &str) -> Vec<String> {
     let mut result: Vec<String> = Vec::new();
 
@@ -37,6 +42,7 @@ fn split_parts(version: &str) -> Vec<String> {
     result
 }
 
+/// The Version struct groups the Debian version parts.
 #[derive(Eq, Debug, Clone)]
 pub struct Version {
     // see https://www.debian.org/doc/debian-policy/ch-controlfields.html#version
@@ -46,6 +52,7 @@ pub struct Version {
 }
 
 impl Version {
+    /// Split Debian version string into epoch, version and revision.
     fn split(version: &str) -> Result<(Option<u8>, String, Option<String>)> {
         let (epoch, version) = match version.find(':') {
             Some(pos) => {
@@ -79,6 +86,7 @@ impl Version {
         Ok((epoch, version.to_string(), revision))
     }
 
+    /// Parse a new Version from its string representation.
     pub fn from_str(version: &str) -> Result<Version> {
         let (epoch, version, revision) = Version::split(version)?;
 
@@ -91,6 +99,7 @@ impl Version {
         Ok(version)
     }
 
+    /// Compare two epochs.
     fn compare_epoch(&self, other: &Version) -> Ordering {
         if self.epoch == other.epoch {
             return Ordering::Equal;
@@ -119,6 +128,7 @@ impl Version {
         }
     }
 
+    /// Compare two versions.
     fn compare_version(&self, other: &Version) -> Ordering {
         if self.version == other.version {
             return Ordering::Equal;
@@ -127,6 +137,7 @@ impl Version {
         Version::compare_version_str(&self.version, &other.version)
     }
 
+    /// Compare two revisions.
     fn compare_revision(&self, other: &Version) -> Ordering {
         if self.revision == other.revision {
             return Ordering::Equal;
@@ -146,6 +157,7 @@ impl Version {
         Version::compare_version_str(self_revision, other_revision)
     }
 
+    /// Implementation of the version and revision comparision.
     fn compare_version_str(self_version: &str, other_version: &str) -> Ordering {
         if self_version == other_version {
             return Ordering::Equal;

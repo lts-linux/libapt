@@ -2,9 +2,9 @@
 
 use std::collections::HashMap;
 
-use crate::{util::download_compressed, Error};
 pub use crate::Result;
 use crate::{release::Link, Architecture, Package, PackageVersion, Release};
+use crate::{util::download_compressed, Error};
 
 /// A PackageIndex is a set of packages for a specific architecture and component.
 pub struct PackageIndex {
@@ -25,7 +25,8 @@ impl PackageIndex {
         if architecture == &Architecture::Source {
             return Err(Error::new(
                 "Source architecture is not supported by this method!",
-                crate::ErrorType::InvalidPackageMeta));
+                crate::ErrorType::InvalidPackageMeta,
+            ));
         }
 
         let mut package_index = PackageIndex {
@@ -130,8 +131,7 @@ mod tests {
 
         let release = Release::from_distro(&distro).unwrap();
 
-        let package_index =
-            PackageIndex::new(&release, "main", &Architecture::Amd64).unwrap();
+        let package_index = PackageIndex::new(&release, "main", &Architecture::Amd64).unwrap();
 
         assert_eq!(package_index.architecture, Architecture::Amd64);
 
@@ -153,16 +153,9 @@ mod tests {
 
         let release = Release::from_distro(&distro).unwrap();
 
-        let package_index =
-            PackageIndex::new(&release, "main", &Architecture::Source).unwrap();
-
-        assert_eq!(package_index.architecture, Architecture::Amd64);
-
-        println!("Package count: {}", package_index.package_count());
-        assert!(package_index.package_count() > 5000);
-
-        let busybox = package_index.get("busybox", None).unwrap();
-        assert_eq!(busybox.package, "busybox".to_string());
-        assert_eq!(busybox.architecture, Some(Architecture::Source));
+        match PackageIndex::new(&release, "main", &Architecture::Source) {
+            Ok(_) => assert!(false), // Binary and source indices use different formats.
+            Err(_) => {}             // Expected.
+        }
     }
 }
