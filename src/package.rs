@@ -1,14 +1,14 @@
-#[cfg(not(test))] 
+#[cfg(not(test))]
 use log::error;
 
 #[cfg(test)]
 use std::println as error;
 
-use std::collections::HashMap;
+use std::{cmp::Ordering, collections::HashMap};
 
-use crate::{Distro, Error, ErrorType, PackageVersion, Priority, Result, Version};
+use crate::{Architecture, Distro, Error, ErrorType, PackageVersion, Priority, Result, Version};
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Package {
     // fields from apt package index
     // see https://wiki.debian.org/DebianRepository/Format#A.22Packages.22_Indices
@@ -18,7 +18,7 @@ pub struct Package {
     // list of sections is unstable, not using type.
     pub section: Option<String>,
     pub priority: Option<Priority>,
-    pub architecture: Option<String>,
+    pub architecture: Option<Architecture>,
     pub essential: Option<bool>,
     // see https://www.debian.org/doc/debian-policy/ch-relationships.html
     pub depends: Vec<PackageVersion>,
@@ -122,9 +122,7 @@ impl Package {
         };
 
         let filename = match kv.get("filename") {
-            Some(filename) => {
-                distro.url(&filename, true)
-            },
+            Some(filename) => distro.url(&filename, true),
             None => {
                 let message = format!("Invalid stanza, filename missing!\n{stanza}");
                 error!("{}", &message);
@@ -168,7 +166,7 @@ impl Package {
 
         match kv.get("architecture") {
             Some(architecture) => {
-                package.architecture = Some(architecture.clone());
+                package.architecture = Some(Architecture::from_str(&architecture)?);
             }
             None => {}
         }
@@ -380,10 +378,22 @@ impl Package {
     }
 }
 
+impl PartialOrd for Package {
+    fn partial_cmp(&self, other: &Package) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for Package {
+    fn cmp(&self, other: &Package) -> Ordering {
+        self.version.cmp(&other.version)
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use crate::Key;
     use super::*;
+    use crate::Key;
 
     #[test]
     fn parse_package() {
@@ -423,7 +433,7 @@ Description-md5: 2ab472dd12387a67ae9ecbe0508146a7
             package.maintainer,
             "Ubuntu Kernel Team <kernel-team@lists.ubuntu.com>"
         );
-        assert_eq!(package.architecture, Some("arm64".to_string()));
+        assert_eq!(package.architecture, Some(Architecture::Arm64));
         assert_eq!(package.version.epoch, None);
         assert_eq!(package.version.version, "5.15.0");
         assert_eq!(package.version.revision, Some("1034.43".to_string()));

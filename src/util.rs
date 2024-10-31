@@ -1,6 +1,6 @@
 //! Helper functions.
 
-#[cfg(not(test))] 
+#[cfg(not(test))]
 use log::info;
 
 #[cfg(test)]
@@ -10,10 +10,10 @@ use std::io::Read;
 
 use flate2::bufread::GzDecoder;
 use lzma;
-use reqwest::blocking::Client;
-use sha2::{Digest, Sha256, Sha512};
-use sha1::Sha1;
 use md5;
+use reqwest::blocking::Client;
+use sha1::Sha1;
+use sha2::{Digest, Sha256, Sha512};
 
 use crate::{release::Link, Error, Result};
 
@@ -28,7 +28,8 @@ pub fn get_etag(url: &str) -> Result<String> {
     if !response.status().is_success() {
         return Err(Error::new(
             &format!("Url {url} download failed!"),
-            crate::ErrorType::DownloadFailure));
+            crate::ErrorType::DownloadFailure,
+        ));
     }
 
     let etag = match response.headers().get("etag") {
@@ -36,12 +37,15 @@ pub fn get_etag(url: &str) -> Result<String> {
         None => {
             return Err(Error::new(
                 &format!("No etag found in header of {url}!"),
-                crate::ErrorType::DownloadFailure));
-        },
+                crate::ErrorType::DownloadFailure,
+            ));
+        }
     };
 
-    let etag = etag.to_str().map_err(|e| Error::from_to_str_error(e, url))?;
-    
+    let etag = etag
+        .to_str()
+        .map_err(|e| Error::from_to_str_error(e, url))?;
+
     Ok(etag.to_string())
 }
 
@@ -63,31 +67,32 @@ fn verify_hash(content: &Vec<u8>, link: &Link) -> Result<()> {
         sha512.update(content);
         let data_hash = sha512.finalize();
         let data_hash = format!("{:x}", data_hash);
-        
+
         ("SHA512", hash, data_hash)
     } else if let Some(hash) = &link.sha256 {
         let mut sha256 = Sha256::new();
         sha256.update(content);
         let data_hash = sha256.finalize();
         let data_hash = format!("{:x}", data_hash);
-        
+
         ("SHA256", hash, data_hash)
     } else if let Some(hash) = &link.sha1 {
         let mut sha1 = Sha1::new();
         sha1.update(content);
         let data_hash = sha1.finalize();
         let data_hash = format!("{:x}", data_hash);
-        
+
         ("SHA1", hash, data_hash)
     } else if let Some(hash) = &link.md5 {
         let digest = md5::compute(content);
         let data_hash = format!("{:x}", digest);
-        
+
         ("MD5", hash, data_hash)
     } else {
         return Err(Error::new(
             &format!("No hash for URL {} provided!", &link.url),
-            crate::ErrorType::DownloadFailure));
+            crate::ErrorType::DownloadFailure,
+        ));
     };
 
     let hash = hash.to_lowercase();
@@ -95,7 +100,8 @@ fn verify_hash(content: &Vec<u8>, link: &Link) -> Result<()> {
     if hash != data_hash {
         return Err(Error::new(
             &format!("{} hash verification of URL {} failed!", name, &link.url),
-            crate::ErrorType::DownloadFailure));
+            crate::ErrorType::DownloadFailure,
+        ));
     } else {
         info!("Verified {} hash for URL {} successfully.", name, &link.url);
         Ok(())
@@ -103,7 +109,7 @@ fn verify_hash(content: &Vec<u8>, link: &Link) -> Result<()> {
 }
 
 /// Download and decompress the content of the given URL as a String.
-/// 
+///
 /// The compression type is guessed using the extension.
 /// Known extensions are "xz" and "gz".
 /// In case of an unknown extension, no compression is guessed.
@@ -111,8 +117,11 @@ pub fn download_compressed(link: &Link) -> Result<String> {
     let url = &link.url;
 
     let client = Client::new();
-    
-    let result = client.get(url).send().map_err(|e| Error::from_reqwest(e, url))?;
+
+    let result = client
+        .get(url)
+        .send()
+        .map_err(|e| Error::from_reqwest(e, url))?;
 
     let text = if url.ends_with(".xz") {
         let data = result.bytes().map_err(|e| Error::from_reqwest(e, url))?;
@@ -123,12 +132,13 @@ pub fn download_compressed(link: &Link) -> Result<String> {
         String::from_utf8_lossy(&content).to_string()
     } else if url.ends_with(".gz") {
         let data = result.bytes().map_err(|e| Error::from_reqwest(e, url))?;
-        
+
         verify_hash(&data.to_vec(), link)?;
 
         let mut gz = GzDecoder::new(&data[..]);
         let mut text = String::new();
-        gz.read_to_string(&mut text).map_err(|e| Error::from_io_error(e, url))?;
+        gz.read_to_string(&mut text)
+            .map_err(|e| Error::from_io_error(e, url))?;
         text
     } else {
         info!("No known extension, assuming plain text.");
@@ -145,7 +155,7 @@ pub fn download_compressed(link: &Link) -> Result<String> {
 }
 
 /// Join a base URL with a path string.
-/// 
+///
 /// The string "./" is ignored.
 pub fn join_url(base: &str, path: &str) -> String {
     let url: String = if base.ends_with("/") {
@@ -202,7 +212,7 @@ mod tests {
 
         match get_etag("http://archive.ubuntu.com/ubuntu/dists/norbert/InRelease") {
             Ok(_) => assert!(false), // No etag for invalid url.
-            Err(_) => {},
+            Err(_) => {}
         };
     }
 }

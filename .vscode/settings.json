@@ -8,6 +8,7 @@
         "devel",
         "distro",
         "dists",
+        "etag",
         "flate",
         "inrelease",
         "libapt",

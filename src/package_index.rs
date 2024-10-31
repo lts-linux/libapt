@@ -1,16 +1,10 @@
 //! Implementation of the package index parsing.
 
-#[cfg(not(test))] 
-use log::info;
-
-#[cfg(test)]
-use std::println as info;
-
 use std::collections::HashMap;
 
-use crate::{release::Link, Architecture, Distro, Package, Release, VersionRelation};
-pub use crate::{Error, ErrorType, Result};
 use crate::util::download_compressed;
+pub use crate::Result;
+use crate::{release::Link, Architecture, Package, PackageVersion, Release};
 
 /// A PackageIndex is a set of packages for a specific architecture and component.
 pub struct PackageIndex {
@@ -23,111 +17,123 @@ pub struct PackageIndex {
 
 impl PackageIndex {
     /// Parse a package index.
-    pub fn new(distro: &Distro, release: &Release, component: &str, architecture: &Architecture) -> Result<PackageIndex> {
+    pub fn new(
+        release: &Release,
+        component: &str,
+        architecture: &Architecture,
+    ) -> Result<PackageIndex> {
         let mut package_index = PackageIndex {
             architecture: architecture.clone(),
             package_map: HashMap::new(),
         };
-        
-        let index_url = if architecture == &Architecture::Source {
-            format!("{component}/source/Sources")
-        } else {
-            let arch_str = architecture.to_string();
-            format!("{component}/binary-{arch_str}/Packages")
-        };
-        let index_url = distro.url(&index_url, false);
 
-        package_index.parse(&index_url, distro, release)?;
+        let link = release.get_package_index_link(component, architecture)?;
+
+        package_index.parse_index(&link, release)?;
 
         Ok(package_index)
     }
 
-    /// Download, verify and parse the package index.
-    /// 
-    /// Find the matching Link and call parse_index.
-    /// The Link is required to verify the hash.
-    fn parse(&mut self, url: &str, distro: &Distro, release: &Release) -> Result<()> {
-        // Supported compression extensions, try form best to no compression
-        let extensions = vec![".xz", ".gz", ""];
-
-        for ext in extensions {
-            // Build URL for compressed index.
-            let package_index = url.to_string() + ext;
-
-            // Find link in release.
-            // The link is mandatory to get the hash sums for verification.
-            match release.links.get(&package_index) {
-                Some(link) => {
-                    self.parse_index(link, distro)?;
-                    return Ok(());
-                },
-                None => {
-                    info!("Index {package_index} not found.");
-                }
-            }
-        }
-
-        // No link found.
-        Err(Error::new(
-            &format!("No matching package index found! url: {}", url),
-            ErrorType::DownloadFailure,
-        ))
-    }
-
-    fn parse_index(&mut self, link: &Link, distro: &Distro) -> Result<()> {
+    /// Download the package index, verify the hash, and parse the content.
+    fn parse_index(&mut self, link: &Link, release: &Release) -> Result<()> {
         let content = download_compressed(&link)?;
 
         for stanza in content.split("\n\n") {
             let stanza = stanza.trim();
-            
+
             if stanza.is_empty() {
                 continue;
             }
 
-            let package = Package::from_stanza(stanza, distro)?;
+            let package = Package::from_stanza(stanza, &release.distro)?;
             self.add(package);
         }
 
         Ok(())
     }
 
+    // Add package to index.
     fn add(&mut self, package: Package) {
         match self.package_map.get_mut(&package.package) {
             Some(list) => {
                 list.push(package);
-            },
+            }
             None => {
-                self.package_map.insert(package.package.clone(), vec![package]);
+                self.package_map
+                    .insert(package.package.clone(), vec![package]);
             }
         }
     }
 
-    pub fn get(&self, name: &str, version: Option<VersionRelation>) -> Option<&Package> {
+    // Get package with the given name and fitting version.
+    pub fn get(&self, name: &str, version: Option<PackageVersion>) -> Option<Package> {
         match self.package_map.get(name) {
             Some(packages) => {
-                match version {
-                    Some(_version) => {
-                        // TODO: impl package version filter
-                        packages.first()
-                    },
-                    None => {
-                        // TODO: return most recent package
-                        packages.first()
+                let packages = match &version {
+                    Some(rel) => {
+                        let mut packages: Vec<Package> = packages
+                            .iter()
+                            .filter(|p| name == p.package)
+                            .filter(|p| rel.matches(&p.version))
+                            .map(|p| p.clone())
+                            .collect();
+                        packages.sort();
+                        packages
                     }
+                    None => {
+                        let mut packages = packages.clone();
+                        packages.sort();
+                        packages
+                    }
+                };
+
+                if !packages.is_empty() {
+                    Some(packages[packages.len() - 1].clone())
+                } else {
+                    None
                 }
-                
-            },
-            None => None
+            }
+            None => None,
         }
     }
 
+    /// Get the number of packages in this index.
     pub fn package_count(&self) -> usize {
         self.package_map.len()
     }
 
+    /// Get all package names.
     pub fn packages(&self) -> Vec<&String> {
         self.package_map.keys().collect()
     }
 }
 
-// TODO: test
+#[cfg(test)]
+mod tests {
+    use crate::{Architecture, Distro, Key, Release};
+
+    use super::PackageIndex;
+
+    #[test]
+    fn parse_ubuntu_jammy_main_amd64() {
+        // Ubuntu Jammy signing key.
+        let key = Key::key("/etc/apt/trusted.gpg.d/ubuntu-keyring-2018-archive.gpg");
+
+        // Ubuntu Jammy distribution.
+        let distro = Distro::repo("http://archive.ubuntu.com/ubuntu", "jammy", key);
+
+        let release = Release::from_distro(&distro).unwrap();
+
+        let package_index =
+            PackageIndex::new(&release, "main", &crate::Architecture::Amd64).unwrap();
+
+        assert_eq!(package_index.architecture, Architecture::Amd64);
+
+        println!("Package count: {}", package_index.package_count());
+        assert!(package_index.package_count() > 5000);
+
+        let busybox = package_index.get("busybox-static", None).unwrap();
+        assert_eq!(busybox.package, "busybox-static".to_string());
+        assert_eq!(busybox.architecture, Some(Architecture::Amd64));
+    }
+}

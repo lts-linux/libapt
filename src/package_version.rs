@@ -1,12 +1,6 @@
-#[cfg(not(test))] 
-use log::error;
-
-#[cfg(test)]
-use std::println as error;
-
 use crate::{Error, ErrorType, Result, Version};
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
 pub enum VersionRelation {
     StrictSmaller,
     Smaller,
@@ -37,9 +31,19 @@ impl VersionRelation {
             ErrorType::UnknownVersionRelation,
         ))
     }
+
+    pub fn matches(&self, a: &Version, b: &Version) -> bool {
+        match &self {
+            VersionRelation::StrictSmaller => a < b,
+            VersionRelation::Smaller => a <= b,
+            VersionRelation::Exact => a == b,
+            VersionRelation::Larger => a >= b,
+            VersionRelation::StrictLarger => a > b,
+        }
+    }
 }
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
 pub struct PackageVersion {
     pub name: String,
     pub version: Option<Version>,
@@ -53,9 +57,9 @@ impl PackageVersion {
         // TODO: fix
         let desc = match desc.find("|") {
             Some(pos) => {
-                error!("Alternative dependencies are not implemented!");
+                // TODO: Alternative dependencies are not implemented
                 desc[..pos].trim()
-            },
+            }
             None => desc,
         };
 
@@ -90,11 +94,39 @@ impl PackageVersion {
             version: version,
         })
     }
+
+    pub fn matches(&self, package_version: &Version) -> bool {
+        if let Some(version) = &self.version {
+            let relation = match &self.relation {
+                Some(relation) => relation,
+                None => &VersionRelation::Exact,
+            };
+
+            println!("Self version: {:?}", version);
+            println!("Other version: {:?}", package_version);
+            println!("Relation: {:?}", relation);
+
+            relation.matches(package_version, version)
+        } else {
+            false
+        }
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_package_version() {
+        let pv = PackageVersion::from_str("libssl3 (>= 3.0.0~~alpha1)").unwrap();
+        assert_eq!(pv.name, "libssl3");
+        assert_eq!(
+            pv.version,
+            Some(Version::from_str("3.0.0~~alpha1").unwrap())
+        );
+        assert_eq!(pv.relation, Some(VersionRelation::Larger));
+    }
 
     #[test]
     fn test_version_relation() {
@@ -142,5 +174,54 @@ mod tests {
         assert_eq!(version.epoch, Some(1));
         assert_eq!(version.version, "1.2.3.3");
         assert_eq!(version.revision, None);
+    }
+
+    #[test]
+    fn test_relation_matches() {
+        let a = Version::from_str("1.2.3-1ubuntu5").unwrap();
+        let b = Version::from_str("1.2.3-1ubuntu6").unwrap();
+
+        let relation = VersionRelation::Exact;
+        assert!(relation.matches(&a, &a));
+        assert!(!relation.matches(&a, &b));
+        assert!(!relation.matches(&b, &a));
+
+        let relation = VersionRelation::Smaller;
+        assert!(relation.matches(&a, &a));
+        assert!(relation.matches(&a, &b));
+        assert!(!relation.matches(&b, &a));
+
+        let relation = VersionRelation::StrictSmaller;
+        assert!(!relation.matches(&a, &a));
+        assert!(relation.matches(&a, &b));
+        assert!(!relation.matches(&b, &a));
+
+        let relation = VersionRelation::Larger;
+        assert!(relation.matches(&a, &a));
+        assert!(!relation.matches(&a, &b));
+        assert!(relation.matches(&b, &a));
+
+        let relation = VersionRelation::StrictLarger;
+        assert!(!relation.matches(&a, &a));
+        assert!(!relation.matches(&a, &b));
+        assert!(relation.matches(&b, &a));
+
+        let version = Version::from_str("3.0.0~~alpha1").unwrap();
+        let relation = VersionRelation::Larger;
+        assert!(relation.matches(&version, &version))
+    }
+
+    #[test]
+    fn test_package_version_matches() {
+        let a = Version::from_str("3.0.0~~alpha1").unwrap();
+        let b = Version::from_str("3.2.0").unwrap();
+        let c = Version::from_str("3.0.0~~alpha0").unwrap();
+
+        let pv = PackageVersion::from_str("libssl3 (>= 3.0.0~~alpha1)").unwrap();
+        println!("PackageVersion: {:?}", pv);
+        println!("Version a: {:?}", a);
+        assert!(pv.matches(&a));
+        assert!(pv.matches(&b));
+        assert!(!pv.matches(&c));
     }
 }

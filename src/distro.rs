@@ -3,14 +3,14 @@
 use crate::util::join_url;
 use crate::{Error, Result};
 
-/// The enum Key is used to wrap the apt repository verification key. 
-/// 
+/// The enum Key is used to wrap the apt repository verification key.
+///
 /// A non-armored key is a _Key::Key_.
 /// Non-armored keys are used by apt and stored in `/etc/apt/trusted.gpg.d/`.
-/// 
+///
 /// A armored key is a _Key::ArmoredKey_.
 /// Armored keys are typically used if a key is provided for download.
-/// 
+///
 /// The type _Key::NoSignatureCheck_ can be used to skip the verification of
 /// the distribution index.
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -34,13 +34,13 @@ impl Key {
 
 /// The Distro groups all information required to locate the
 /// distribution main index _InRelease_ file.
-/// 
+///
 /// The struct can handle flat and default repositories.
 /// In case of a flat repository the _name_ is _None_ and the _path_ is used.
 /// In case of a default repository the _path_ is _None_ and the _name_ is used.
-/// 
+///
 /// If _name_ and _path_ are none, the struct is invalid.
-/// 
+///
 /// If a flat repo which makes not use of a subfolder, e.g. Suse Open Build Service,
 /// the path _./_ can be used, like in apt source lists.
 #[derive(Debug, Clone)]
@@ -73,7 +73,7 @@ impl Distro {
     }
 
     /// Get the URL of the _InRelease_ index file.
-    /// 
+    ///
     /// Returns an error if _name_ and _path_ are _None_.
     pub fn in_release_url(&self) -> Result<String> {
         if let Some(name) = &self.name {
@@ -94,10 +94,10 @@ impl Distro {
     }
 
     /// Create a URL using the given path.
-    /// 
+    ///
     /// This method can be used to get valid index urls when the _package_ flag is false.
     /// In this case, the location of the _InRelease_ file is used as a base.
-    /// 
+    ///
     /// This method can be used to get valid package urls when the _package_ flag is true.
     /// In this case, the root location is used as a base.
     pub fn url(&self, path: &str, package: bool) -> String {
@@ -139,15 +139,14 @@ mod tests {
     fn flat_distro_in_release_url() {
         let key = Key::key("http://archive.ubuntu.com/ubuntu/key.gpg");
 
-        let distro = Distro::flat_repo(
-            "http://archive.ubuntu.com/ubuntu",
-            "path",
-            key,
-        );
+        let distro = Distro::flat_repo("http://archive.ubuntu.com/ubuntu", "path", key);
 
         let in_release = distro.in_release_url().unwrap();
 
-        assert_eq!(in_release, "http://archive.ubuntu.com/ubuntu/path/InRelease");
+        assert_eq!(
+            in_release,
+            "http://archive.ubuntu.com/ubuntu/path/InRelease"
+        );
     }
 
     #[test]
@@ -168,16 +167,15 @@ mod tests {
     fn repo_key() {
         let key = Key::armored_key("http://archive.ubuntu.com/ubuntu/key.pub");
 
-        let distro = Distro::repo(
-            "http://archive.ubuntu.com/ubuntu",
-            "jammy",
-            key,
-        );
+        let distro = Distro::repo("http://archive.ubuntu.com/ubuntu", "jammy", key);
 
         assert_eq!(distro.url, "http://archive.ubuntu.com/ubuntu");
         assert_eq!(distro.name, Some("jammy".to_string()));
         assert_eq!(distro.path, None);
-        assert_eq!(distro.key, Key::ArmoredKey("http://archive.ubuntu.com/ubuntu/key.pub".to_string()));
+        assert_eq!(
+            distro.key,
+            Key::ArmoredKey("http://archive.ubuntu.com/ubuntu/key.pub".to_string())
+        );
     }
 
     #[test]
@@ -198,15 +196,14 @@ mod tests {
     fn flat_repo_key() {
         let key = Key::armored_key("http://archive.ubuntu.com/ubuntu/key.pub");
 
-        let distro = Distro::flat_repo(
-            "http://archive.ubuntu.com/ubuntu",
-            "path",
-            key,
-        );
+        let distro = Distro::flat_repo("http://archive.ubuntu.com/ubuntu", "path", key);
 
         assert_eq!(distro.url, "http://archive.ubuntu.com/ubuntu");
         assert_eq!(distro.path, Some("path".to_string()));
         assert_eq!(distro.name, None);
-        assert_eq!(distro.key, Key::ArmoredKey("http://archive.ubuntu.com/ubuntu/key.pub".to_string()));
+        assert_eq!(
+            distro.key,
+            Key::ArmoredKey("http://archive.ubuntu.com/ubuntu/key.pub".to_string())
+        );
     }
 }

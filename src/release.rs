@@ -1,25 +1,25 @@
 //! Implementation of the InRelease file parsing.
 
-#[cfg(not(test))] 
-use log::warn;
+#[cfg(not(test))]
+use log::{info, warn};
 
 #[cfg(test)]
-use std::println as warn;
+use std::{println as warn, println as info};
 
 use chrono::DateTime;
 use chrono::FixedOffset;
 use std::collections::HashMap;
 
-use crate::util::download;
 use crate::signature::verify_in_release;
+use crate::util::{download, get_etag};
 use crate::Architecture;
 use crate::Distro;
 use crate::{Error, ErrorType, Result};
 
 /// Link represents a file referenced from InRelease.
-/// 
+///
 /// This type is used to group all hashes for a referenced path.
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
 pub struct Link {
     pub url: String,
     pub size: usize,
@@ -30,7 +30,7 @@ pub struct Link {
 }
 
 /// The Release struct groups all data from the InRelease file.
-/// 
+///
 /// When the InRelease file is parsed, all specified values from
 /// [Debian Wiki InRelease specification](https://wiki.debian.org/DebianRepository/Format#A.22Release.22_files)
 /// are considered.
@@ -53,12 +53,13 @@ pub struct Release {
     pub signed_by: Vec<String>,
     pub changelogs: Option<String>,
     pub snapshots: Option<String>,
+    // internal data
+    pub distro: Distro,
 }
 
 impl Release {
-
     /// Create a new Release struct with default values.
-    fn new() -> Release {
+    fn new(distro: &Distro) -> Release {
         Release {
             hash: None,
             origin: None,
@@ -76,6 +77,7 @@ impl Release {
             signed_by: Vec::new(),
             changelogs: None,
             snapshots: None,
+            distro: distro.clone(),
         }
     }
 
@@ -90,7 +92,7 @@ impl Release {
 
         // Parse content.
         let mut section = ReleaseSection::Keywords;
-        let mut release = Release::new();
+        let mut release = Release::new(distro);
 
         for line in content.lines() {
             if line.trim().is_empty() {
@@ -229,12 +231,9 @@ impl Release {
                             md5: None,
                             sha1: None,
                             sha256: None,
-                            sha512: None
+                            sha512: None,
                         };
-                        release.links.insert(
-                            url.clone(),
-                            link,
-                        );
+                        release.links.insert(url.clone(), link);
                     }
 
                     let link = release.links.get_mut(&url).unwrap();
@@ -244,10 +243,10 @@ impl Release {
                     }
 
                     match section {
-                        ReleaseSection::HashMD5 => {link.md5 =  Some(parts[0].clone())},
-                        ReleaseSection::HashSHA1 => {link.sha1 =  Some(parts[0].clone())},
-                        ReleaseSection::HashSHA256 => {link.sha256 =  Some(parts[0].clone())},
-                        ReleaseSection::HashSHA512 => {link.sha512 =  Some(parts[0].clone())},
+                        ReleaseSection::HashMD5 => link.md5 = Some(parts[0].clone()),
+                        ReleaseSection::HashSHA1 => link.sha1 = Some(parts[0].clone()),
+                        ReleaseSection::HashSHA256 => link.sha256 = Some(parts[0].clone()),
+                        ReleaseSection::HashSHA512 => link.sha512 = Some(parts[0].clone()),
                         _ => {}
                     };
                 }
@@ -260,38 +259,108 @@ impl Release {
     pub fn check_compliance(&self) -> Result<()> {
         if self.components.is_empty() {
             return Err(Error::new(
-                "No components provided.", 
-                ErrorType::InvalidReleaseFormat));
+                "No components provided.",
+                ErrorType::InvalidReleaseFormat,
+            ));
         }
 
         if self.architectures.is_empty() {
             return Err(Error::new(
-                "No architectures provided.", 
-                ErrorType::InvalidReleaseFormat));
+                "No architectures provided.",
+                ErrorType::InvalidReleaseFormat,
+            ));
         }
 
         if self.suite == None && self.codename == None {
             return Err(Error::new(
-                "Neither suite nor codename provided.", 
-                ErrorType::InvalidReleaseFormat));
+                "Neither suite nor codename provided.",
+                ErrorType::InvalidReleaseFormat,
+            ));
         }
 
         if self.date == None {
             return Err(Error::new(
-                "No date provided.", 
-                ErrorType::InvalidReleaseFormat));
+                "No date provided.",
+                ErrorType::InvalidReleaseFormat,
+            ));
         }
 
         for key in self.links.keys() {
             let link = self.links.get(key).unwrap();
             if link.sha256 == None {
                 return Err(Error::new(
-                    &format!("No SHA256 hash provided for URL {key}."), 
-                    ErrorType::InvalidReleaseFormat));
+                    &format!("No SHA256 hash provided for URL {key}."),
+                    ErrorType::InvalidReleaseFormat,
+                ));
             }
         }
 
         Ok(())
+    }
+
+    pub fn get_package_links(&self) -> Vec<(String, Architecture, Link)> {
+        let mut components = Vec::new();
+
+        for architecture in &self.architectures {
+            for component in &self.components {
+                let link = match self.get_package_index_link(component, architecture) {
+                    Ok(link) => link,
+                    Err(_) => {
+                        info!("No link for component {component} and architecture {architecture}. Skipping.");
+                        continue;
+                    }
+                };
+                components.push((component.to_string(), architecture.clone(), link));
+            }
+        }
+
+        components
+    }
+
+    pub fn get_package_index_link(
+        &self,
+        component: &str,
+        architecture: &Architecture,
+    ) -> Result<Link> {
+        let index_url = if architecture == &Architecture::Source {
+            format!("{component}/source/Sources")
+        } else {
+            let arch_str = architecture.to_string();
+            format!("{component}/binary-{arch_str}/Packages")
+        };
+
+        let index_url = self.distro.url(&index_url, false);
+
+        // Supported compression extensions, try form best to no compression
+        let extensions = vec![".xz", ".gz", ""];
+
+        for ext in extensions {
+            // Build URL for compressed index.
+            let package_index = index_url.clone() + ext;
+
+            // Find link in release.
+            // The link is mandatory to get the hash sums for verification.
+            match self.links.get(&package_index) {
+                Some(link) => {
+                    match get_etag(&link.url) {
+                        Ok(_) => return Ok(link.clone()), // Index file exists.
+                        Err(_) => {
+                            info!("No etag for {package_index}, trying next link.");
+                            continue;
+                        }
+                    }
+                }
+                None => {
+                    info!("Index {package_index} not found.");
+                }
+            }
+        }
+
+        // No link found.
+        Err(Error::new(
+            &format!("No matching package index found for component {component} and architecture {architecture}!"),
+            ErrorType::DownloadFailure,
+        ))
     }
 }
 
@@ -306,19 +375,15 @@ enum ReleaseSection {
 
 #[cfg(test)]
 mod tests {
-    use crate::{Key, Distro, Release};
+    use crate::{Distro, Key, Release};
 
     #[test]
     fn parse_ubuntu_jammy_release_file() {
         // Ubuntu Jammy signing key.
         let key = Key::key("/etc/apt/trusted.gpg.d/ubuntu-keyring-2018-archive.gpg");
-        
+
         // Ubuntu Jammy distribution.
-        let distro = Distro::repo(
-            "http://archive.ubuntu.com/ubuntu",
-            "jammy",
-            key,
-        );
+        let distro = Distro::repo("http://archive.ubuntu.com/ubuntu", "jammy", key);
 
         let release = Release::from_distro(&distro).unwrap();
 
@@ -336,11 +401,11 @@ mod tests {
         release.check_compliance().unwrap();
     }
 
-   #[test]
+    #[test]
     fn parse_ebcl_release_file() {
         // EBcL signing key.
         let key = Key::armored_key("https://linux.elektrobit.com/eb-corbos-linux/ebcl_1.0_key.pub");
-        
+
         // EBcL 1.3 distribution.
         let distro = Distro::repo(
             "http://linux.elektrobit.com/eb-corbos-linux/1.3",
@@ -365,7 +430,7 @@ mod tests {
     fn test_wrong_key() {
         // Ubuntu Jammy signing key.
         let key = Key::key("/etc/apt/trusted.gpg.d/ubuntu-keyring-2018-archive.gpg");
-        
+
         // Ubuntu Jammy distribution.
         let distro = Distro::repo(
             "http://linux.elektrobit.com/eb-corbos-linux/1.3",
@@ -377,5 +442,46 @@ mod tests {
             Ok(_) => assert!(false), // Key verification shall fail!
             Err(_) => {}
         };
+    }
+
+    #[test]
+    fn test_package_index_link() {
+        // Ubuntu Jammy signing key.
+        let key = Key::key("/etc/apt/trusted.gpg.d/ubuntu-keyring-2018-archive.gpg");
+
+        // Ubuntu Jammy distribution.
+        let distro = Distro::repo("http://archive.ubuntu.com/ubuntu", "jammy", key);
+
+        let release = Release::from_distro(&distro).unwrap();
+
+        let link = release
+            .get_package_index_link("main", &crate::Architecture::Amd64)
+            .unwrap();
+        assert_eq!(
+            link.url,
+            "http://archive.ubuntu.com/ubuntu/dists/jammy/main/binary-amd64/Packages.xz"
+                .to_string()
+        );
+
+        match release.get_package_index_link("main", &crate::Architecture::Arm64) {
+            Ok(_) => assert!(false), // Should not exist!
+            Err(_) => {}             // Ok, expected.
+        };
+    }
+
+    #[test]
+    fn test_get_package_links() {
+        // Ubuntu Jammy signing key.
+        let key = Key::key("/etc/apt/trusted.gpg.d/ubuntu-keyring-2018-archive.gpg");
+
+        // Ubuntu Jammy distribution.
+        let distro = Distro::repo("http://archive.ubuntu.com/ubuntu", "jammy", key);
+
+        let release = Release::from_distro(&distro).unwrap();
+
+        let components = release.get_package_links();
+        println!("Components: {:?}", components);
+        println!("Found {} package indices.", components.len());
+        assert_eq!(components.len(), 8);
     }
 }

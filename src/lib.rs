@@ -1,6 +1,5 @@
 #![doc = include_str!("../README.md")]
 
-
 mod distro;
 mod error;
 mod package;
@@ -21,4 +20,5 @@ pub use package_version::{PackageVersion, VersionRelation};
 pub use release::Release;
 pub use types::architecture::Architecture;
 pub use types::priority::Priority;
+pub use util::get_etag;
 pub use version::Version;

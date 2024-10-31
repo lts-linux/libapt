@@ -1,4 +1,4 @@
-#[cfg(not(test))] 
+#[cfg(not(test))]
 use log::error;
 
 #[cfg(test)]
@@ -37,7 +37,7 @@ fn split_parts(version: &str) -> Vec<String> {
     result
 }
 
-#[derive(Eq, Debug)]
+#[derive(Eq, Debug, Clone)]
 pub struct Version {
     // see https://www.debian.org/doc/debian-policy/ch-controlfields.html#version
     pub epoch: Option<u8>,

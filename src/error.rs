@@ -80,7 +80,11 @@ impl Error {
         Error::from_error(&error, ErrorType::DownloadFailure, &url)
     }
 
-    pub fn from_error(error: &dyn std::error::Error, error_type: ErrorType, message: &str) -> Error {
+    pub fn from_error(
+        error: &dyn std::error::Error,
+        error_type: ErrorType,
+        message: &str,
+    ) -> Error {
         let message = format!("{message}: {error}");
         Error {
             message: Some(message),

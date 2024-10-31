@@ -1,6 +1,6 @@
 use crate::{Error, ErrorType, Result};
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
 pub enum Priority {
     // see https://www.debian.org/doc/debian-policy/ch-archive.html#s-subsections
     // packages necessary for proper system functioning
