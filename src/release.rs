@@ -261,6 +261,43 @@ impl Release {
     }
 
     pub fn check_compliance(&self) -> Result<()> {
+        if self.components.is_empty() {
+            return Err(Error::new(
+                "No components provided.", 
+                ErrorType::InvalidReleaseFormat));
+        }
+
+        if self.architectures.is_empty() {
+            return Err(Error::new(
+                "No architectures provided.", 
+                ErrorType::InvalidReleaseFormat));
+        }
+
+        if self.suite == None && self.codename == None {
+            return Err(Error::new(
+                "Neither suite nor codename provided.", 
+                ErrorType::InvalidReleaseFormat));
+        }
+
+        if self.date == None {
+            return Err(Error::new(
+                "No date provided.", 
+                ErrorType::InvalidReleaseFormat));
+        }
+
+        for key in self.links.keys() {
+            let link = self.links.get(key).unwrap();
+            let sha256_hash = link.hashes.iter().any(|fh| match fh {
+                FileHash::Sha256(_) => true,
+                _ => false,
+            });
+            if !sha256_hash {
+                return Err(Error::new(
+                    &format!("No SHA256 hash provided for URL {key}."), 
+                    ErrorType::InvalidReleaseFormat));
+            }
+        }
+
         Ok(())
     }
 }
