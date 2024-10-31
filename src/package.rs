@@ -1,3 +1,5 @@
+//! Implementation of the package types and parsing.
+//! 
 #[cfg(not(test))]
 use log::error;
 
@@ -8,11 +10,18 @@ use std::{cmp::Ordering, collections::HashMap};
 
 use crate::{Architecture, Distro, Error, ErrorType, PackageVersion, Priority, Result, Version};
 
+
+/// The Package struct groups all data about a package.
+///
+/// When the package index file is parsed, all specified values from
+/// [Debian Wiki Package Indices specification](https://wiki.debian.org/DebianRepository/Format#A.22Packages.22_Indices)
+/// are considered.
+/// For parsing the single entries the 
+/// [Debian Wiki Binary Package specification](https://www.debian.org/doc/debian-policy/ch-controlfields.html#debian-binary-package-control-files-debian-control)
+/// is used as a base.
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Package {
     // fields from apt package index
-    // see https://wiki.debian.org/DebianRepository/Format#A.22Packages.22_Indices
-    // and see https://www.debian.org/doc/debian-policy/ch-controlfields.html#debian-binary-package-control-files-debian-control
     pub package: String,
     pub source: Option<String>,
     // list of sections is unstable, not using type.
@@ -46,6 +55,8 @@ pub struct Package {
 }
 
 impl Package {
+
+    /// New struct with default values.
     pub fn new(
         package: &str,
         version: Version,
@@ -86,6 +97,7 @@ impl Package {
         }
     }
 
+    /// Parse a Package from its stanza.
     pub fn from_stanza(stanza: &str, distro: &Distro) -> Result<Package> {
         let kv = Package::parse_stanza(stanza);
 
@@ -318,6 +330,7 @@ impl Package {
         Ok(package)
     }
 
+    /// Parse a package dependency and relation field.
     fn parse_package_relation(depends: &str) -> Result<Vec<PackageVersion>> {
         let pvs: Result<Vec<Vec<PackageVersion>>> = depends
             .split(",")
@@ -330,6 +343,7 @@ impl Package {
         Ok(pvs)
     }
 
+    /// Transform stanza into a key value hashmap.
     fn parse_stanza(stanza: &str) -> HashMap<String, String> {
         let mut kv = HashMap::new();
 

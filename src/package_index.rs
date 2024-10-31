@@ -2,7 +2,7 @@
 
 use std::collections::HashMap;
 
-use crate::util::download_compressed;
+use crate::{util::download_compressed, Error};
 pub use crate::Result;
 use crate::{release::Link, Architecture, Package, PackageVersion, Release};
 
@@ -22,6 +22,12 @@ impl PackageIndex {
         component: &str,
         architecture: &Architecture,
     ) -> Result<PackageIndex> {
+        if architecture == &Architecture::Source {
+            return Err(Error::new(
+                "Source architecture is not supported by this method!",
+                crate::ErrorType::InvalidPackageMeta));
+        }
+
         let mut package_index = PackageIndex {
             architecture: architecture.clone(),
             package_map: HashMap::new(),
@@ -125,7 +131,7 @@ mod tests {
         let release = Release::from_distro(&distro).unwrap();
 
         let package_index =
-            PackageIndex::new(&release, "main", &crate::Architecture::Amd64).unwrap();
+            PackageIndex::new(&release, "main", &Architecture::Amd64).unwrap();
 
         assert_eq!(package_index.architecture, Architecture::Amd64);
 
@@ -135,5 +141,28 @@ mod tests {
         let busybox = package_index.get("busybox-static", None).unwrap();
         assert_eq!(busybox.package, "busybox-static".to_string());
         assert_eq!(busybox.architecture, Some(Architecture::Amd64));
+    }
+
+    #[test]
+    fn parse_source_index() {
+        // Ubuntu Jammy signing key.
+        let key = Key::key("/etc/apt/trusted.gpg.d/ubuntu-keyring-2018-archive.gpg");
+
+        // Ubuntu Jammy distribution.
+        let distro = Distro::repo("http://archive.ubuntu.com/ubuntu", "jammy", key);
+
+        let release = Release::from_distro(&distro).unwrap();
+
+        let package_index =
+            PackageIndex::new(&release, "main", &Architecture::Source).unwrap();
+
+        assert_eq!(package_index.architecture, Architecture::Amd64);
+
+        println!("Package count: {}", package_index.package_count());
+        assert!(package_index.package_count() > 5000);
+
+        let busybox = package_index.get("busybox", None).unwrap();
+        assert_eq!(busybox.package, "busybox".to_string());
+        assert_eq!(busybox.architecture, Some(Architecture::Source));
     }
 }
