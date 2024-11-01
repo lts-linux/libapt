@@ -1,7 +1,7 @@
-use crate::{Error, ErrorType, Result};
+use crate::Result;
 use std::fmt;
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Clone)]
 pub enum Architecture {
     Amd64,
     Arm64,
@@ -12,12 +12,19 @@ pub enum Architecture {
     S390x,
     All,
     Source,
+    Any,
+    X32,
+    Other(String),
 }
 
 impl Architecture {
     pub fn from_str(arch: &str) -> Result<Architecture> {
         let arch = arch.to_lowercase();
-        let arch = arch.trim();
+        let arch = if arch.starts_with("linux-") {
+            &arch[6..].trim()
+        } else {
+            arch.trim()
+        };
 
         if arch == "amd64" {
             return Ok(Architecture::Amd64);
@@ -37,12 +44,13 @@ impl Architecture {
             return Ok(Architecture::All);
         } else if arch == "source" {
             return Ok(Architecture::Source);
+        } else if arch == "any" {
+            return Ok(Architecture::Any);
+        } else if arch == "x32" {
+           return Ok(Architecture::X32);
         }
 
-        Err(Error::new(
-            &format!("Architecture {arch} is not known!"),
-            ErrorType::UnknownArchitecture,
-        ))
+        Ok(Architecture::Other(arch.to_string()))
     }
 }
 
@@ -58,6 +66,9 @@ impl fmt::Display for Architecture {
             Architecture::Riscv64 => "riscv64",
             Architecture::S390x => "s390x",
             Architecture::Source => "source",
+            Architecture::Any => "any",
+            Architecture::X32 => "x32",
+            Architecture::Other(s) => &format!("Other({s})"),
         };
 
         write!(f, "{}", name)

@@ -6,8 +6,9 @@ use log::error;
 #[cfg(test)]
 use std::println as error;
 
-use std::{cmp::Ordering, collections::HashMap};
+use std::cmp::Ordering;
 
+use crate::util::{parse_package_relation, parse_stanza};
 use crate::{Architecture, Distro, Error, ErrorType, PackageVersion, Priority, Result, Version};
 
 /// The Package struct groups all data about a package.
@@ -97,7 +98,7 @@ impl Package {
 
     /// Parse a Package from its stanza.
     pub fn from_stanza(stanza: &str, distro: &Distro) -> Result<Package> {
-        let kv = Package::parse_stanza(stanza);
+        let kv = parse_stanza(stanza);
 
         let name = match kv.get("package") {
             Some(name) => name,
@@ -257,131 +258,75 @@ impl Package {
 
         match kv.get("depends") {
             Some(depends) => {
-                package.depends = Package::parse_package_relation(depends)?;
+                package.depends = parse_package_relation(depends)?;
             }
             None => {}
         };
 
         match kv.get("pre-depends") {
             Some(pre_depends) => {
-                package.pre_depends = Package::parse_package_relation(pre_depends)?;
+                package.pre_depends = parse_package_relation(pre_depends)?;
             }
             None => {}
         };
 
         match kv.get("recommends") {
             Some(recommends) => {
-                package.recommends = Package::parse_package_relation(recommends)?;
+                package.recommends = parse_package_relation(recommends)?;
             }
             None => {}
         };
 
         match kv.get("suggests") {
             Some(suggests) => {
-                package.suggests = Package::parse_package_relation(suggests)?;
+                package.suggests = parse_package_relation(suggests)?;
             }
             None => {}
         };
 
         match kv.get("breaks") {
             Some(breaks) => {
-                package.breaks = Package::parse_package_relation(breaks)?;
+                package.breaks = parse_package_relation(breaks)?;
             }
             None => {}
         };
 
         match kv.get("conflicts") {
             Some(conflicts) => {
-                package.conflicts = Package::parse_package_relation(conflicts)?;
+                package.conflicts = parse_package_relation(conflicts)?;
             }
             None => {}
         };
 
         match kv.get("provides") {
             Some(provides) => {
-                package.provides = Package::parse_package_relation(provides)?;
+                package.provides = parse_package_relation(provides)?;
             }
             None => {}
         };
 
         match kv.get("replaces") {
             Some(replaces) => {
-                package.replaces = Package::parse_package_relation(replaces)?;
+                package.replaces = parse_package_relation(replaces)?;
             }
             None => {}
         };
 
         match kv.get("enhances") {
             Some(enhances) => {
-                package.enhances = Package::parse_package_relation(enhances)?;
+                package.enhances = parse_package_relation(enhances)?;
             }
             None => {}
         };
 
         match kv.get("built-using") {
             Some(built_using) => {
-                package.built_using = Some(Package::parse_package_relation(built_using)?);
+                package.built_using = Some(parse_package_relation(built_using)?);
             }
             None => {}
         };
 
         Ok(package)
-    }
-
-    /// Parse a package dependency and relation field.
-    fn parse_package_relation(depends: &str) -> Result<Vec<PackageVersion>> {
-        let pvs: Result<Vec<Vec<PackageVersion>>> = depends
-            .split(",")
-            .map(|p| p.trim())
-            .map(|p| PackageVersion::from_str(p))
-            .collect();
-        let pvs = pvs?;
-        let pvs: Vec<PackageVersion> = pvs.iter().flatten().map(|pv| pv.clone()).collect();
-
-        Ok(pvs)
-    }
-
-    /// Transform stanza into a key value hashmap.
-    fn parse_stanza(stanza: &str) -> HashMap<String, String> {
-        let mut kv = HashMap::new();
-
-        let mut key = "";
-        let mut value = String::new();
-
-        for line in stanza.lines() {
-            if line.trim().is_empty() {
-                continue;
-            }
-
-            if line.starts_with(' ') {
-                if key.is_empty() {
-                    error!("Continuation line found without keyword! {line}")
-                } else {
-                    value += "\n";
-                    value += line.trim();
-                }
-            } else {
-                if !key.is_empty() {
-                    kv.insert(key.to_lowercase(), value.clone());
-                }
-
-                match line.find(':') {
-                    Some(pos) => {
-                        key = line[..pos].trim();
-                        value = line[(pos + 1)..].trim().to_string();
-                    }
-                    None => {
-                        error!("Invalid line: {line}")
-                    }
-                }
-            }
-        }
-
-        if !key.is_empty() {
-            kv.insert(key.to_lowercase(), value.clone());
-        }
-
-        kv
     }
 }
 

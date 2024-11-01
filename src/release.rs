@@ -14,20 +14,9 @@ use crate::signature::verify_in_release;
 use crate::util::{download, get_etag};
 use crate::Architecture;
 use crate::Distro;
+use crate::Link;
+use crate::LinkHash;
 use crate::{Error, ErrorType, Result};
-
-/// Link represents a file referenced from InRelease.
-///
-/// This type is used to group all hashes for a referenced path.
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
-pub struct Link {
-    pub url: String,
-    pub size: usize,
-    pub md5: Option<String>,
-    pub sha1: Option<String>,
-    pub sha256: Option<String>,
-    pub sha512: Option<String>,
-}
 
 /// The Release struct groups all data from the InRelease file.
 ///
@@ -204,49 +193,28 @@ impl Release {
                     }
                 }
                 section => {
-                    let parts: Vec<String> = line
-                        .split(" ")
-                        .filter(|e| !e.trim().is_empty())
-                        .map(|e| e.trim().to_string())
-                        .collect();
-
-                    if parts.len() != 3 {
-                        warn!("Invalid file line! {line}");
-                        continue;
-                    }
-
-                    let size = match parts[1].parse::<usize>() {
-                        Ok(size) => size,
-                        Err(e) => {
-                            warn!("Invalid file size of line {line}! {e}");
-                            continue;
-                        }
-                    };
-                    let url = distro.url(&parts[2], false);
+                    let link = Link::form_release(line, distro)?;
+                    let url = link.url.clone();
 
                     if !release.links.contains_key(&url) {
-                        let link = Link {
-                            url: url.clone(),
-                            size: size,
-                            md5: None,
-                            sha1: None,
-                            sha256: None,
-                            sha512: None,
-                        };
                         release.links.insert(url.clone(), link);
                     }
 
                     let link = release.links.get_mut(&url).unwrap();
-                    if link.size != size {
-                        let link_size = link.size;
-                        warn!("Size mismatch for {}! {link_size} != {size}", &url)
-                    }
 
                     match section {
-                        ReleaseSection::HashMD5 => link.md5 = Some(parts[0].clone()),
-                        ReleaseSection::HashSHA1 => link.sha1 = Some(parts[0].clone()),
-                        ReleaseSection::HashSHA256 => link.sha256 = Some(parts[0].clone()),
-                        ReleaseSection::HashSHA512 => link.sha512 = Some(parts[0].clone()),
+                        ReleaseSection::HashMD5 => {
+                            link.add_hash(line, LinkHash::Md5)?;
+                        }
+                        ReleaseSection::HashSHA1 => {
+                            link.add_hash(line, LinkHash::Sha1)?;
+                        }
+                        ReleaseSection::HashSHA256 => {
+                            link.add_hash(line, LinkHash::Sha256)?;
+                        }
+                        ReleaseSection::HashSHA512 => {
+                            link.add_hash(line, LinkHash::Sha512)?;
+                        }
                         _ => {}
                     };
                 }
@@ -287,7 +255,7 @@ impl Release {
 
         for key in self.links.keys() {
             let link = self.links.get(key).unwrap();
-            if link.sha256 == None {
+            if !link.hashes.contains_key(&LinkHash::Sha256) {
                 return Err(Error::new(
                     &format!("No SHA256 hash provided for URL {key}."),
                     ErrorType::InvalidReleaseFormat,

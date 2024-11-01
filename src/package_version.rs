@@ -1,6 +1,6 @@
 //! Implementation of package version dependencies.
 
-use crate::{Error, ErrorType, Result, Version};
+use crate::{Architecture, Error, ErrorType, Result, Version};
 
 /// A VersionRelation describes the relation between two package versions.
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
@@ -52,6 +52,7 @@ impl VersionRelation {
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
 pub struct PackageVersion {
     pub name: String,
+    pub architecture: Option<Architecture>,
     pub version: Option<Version>,
     pub relation: Option<VersionRelation>,
 }
@@ -59,50 +60,96 @@ pub struct PackageVersion {
 impl PackageVersion {
     /// Create a PackageVersion from it's string representation.
     pub fn from_str(desc: &str) -> Result<Vec<PackageVersion>> {
-        let desc = desc.trim();
+        let desc: &str = desc.trim();
 
         let alternatives: Vec<&str> = desc.split("|").map(|p| p.trim()).collect();
 
-        let result: Result<Vec<PackageVersion>> = alternatives
+        let result: Result<Vec<Vec<PackageVersion>>> = alternatives
             .iter()
             .map(|d| PackageVersion::single_form_str(d))
             .collect();
+        let result = result?;
+        let result: Vec<PackageVersion> = result.iter().flatten().map(|pv| pv.clone()).collect();
 
-        Ok(result?)
+        Ok(result)
     }
 
     /// Parse a single package version from string.
-    fn single_form_str(desc: &str) -> Result<PackageVersion> {
-        let (name, relation, version) = match desc.find(' ') {
-            Some(pos) => {
-                let name = &desc[..pos];
-                let version = desc[pos..].trim();
-                // drop brackets
-                let version = &version[1..(version.len() - 1)];
-                let (relation, version) = match version.find(' ') {
-                    Some(pos) => {
-                        let relation = version[..pos].trim();
-                        let version = version[pos..].trim();
+    fn single_form_str(desc: &str) -> Result<Vec<PackageVersion>> {
+        let mut architectures: Vec<Architecture> = Vec::new();
 
-                        let relation = VersionRelation::from_str(relation)?;
+        // Get the package name.
+        let (name, desc) = if let Some(pos) = desc.find(" ") {
+            let name = &desc[..pos];
+            let desc = &desc[pos+1..];
 
-                        (relation, version)
-                    }
-                    None => (VersionRelation::Exact, version),
-                };
+            let name = if let Some(pos) = name.find(":") {
+                let arch = &name[pos+1..];
+                let name = &name[..pos];
 
-                let version = Version::from_str(version)?;
+                architectures.push(Architecture::from_str(arch)?);
 
-                (name, Some(relation), Some(version))
-            }
-            None => (desc, None, None),
+                name
+            } else {
+                name
+            };
+
+            (name, desc)
+        } else {
+            (desc.trim(), "")
         };
 
-        Ok(PackageVersion {
-            name: name.to_string(),
-            relation: relation,
-            version: version,
-        })
+        // Check for architecture list
+        if let Some(start) = desc.find("[") {
+            if let Some(end) = desc.find("]") {
+                let archs = &desc[start+1..end];
+                for arch in archs.split(" ") {
+                    architectures.push(Architecture::from_str(arch)?);
+                }
+            }
+        }
+
+        // Check for version relation
+        let mut version: Option<Version> = None;
+        let mut relation: Option<VersionRelation> = None;
+        if let Some(start) = desc.find("(") {
+            if let Some(end) = desc.find(")") {
+                let vr = &desc[start+1..end];
+                if let Some(pos) = vr.find(" ") {
+                    // with relation
+                    relation = Some(VersionRelation::from_str(&vr[..pos])?);
+                    version = Some(Version::from_str(&vr[pos+1..])?);
+                } else {
+                    // no relation
+                    version = Some(Version::from_str(vr)?);
+                }
+            }
+        }
+
+        // Generate results.
+        let mut package_versions = Vec::new();
+
+        let name = name.to_string();
+
+        if architectures.is_empty() {
+            package_versions.push(PackageVersion {
+                name: name,
+                architecture: None,
+                relation: relation,
+                version: version,
+            });
+        } else {
+            for architecture in architectures {
+                package_versions.push(PackageVersion {
+                    name: name.clone(),
+                    architecture: Some(architecture),
+                    relation: relation.clone(),
+                    version: version.clone(),
+                });
+            }
+        }
+
+        Ok(package_versions)
     }
 
     /// Check if the given package version matches the requirement.

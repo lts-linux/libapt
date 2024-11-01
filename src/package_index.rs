@@ -3,8 +3,8 @@
 use std::collections::HashMap;
 
 pub use crate::Result;
-use crate::{release::Link, Architecture, Package, PackageVersion, Release};
 use crate::{util::download_compressed, Error};
+use crate::{Architecture, Link, Package, PackageVersion, Release};
 
 /// A PackageIndex is a set of packages for a specific architecture and component.
 pub struct PackageIndex {

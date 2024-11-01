@@ -5,11 +5,14 @@
         "chrono",
         "Cleartext",
         "Codeberg",
+        "darcs",
         "devel",
+        "dgit",
         "distro",
         "dists",
         "etag",
         "flate",
+        "indep",
         "inrelease",
         "libapt",
         "libc",
@@ -19,6 +22,8 @@
         "rfind",
         "Riscv",
         "splitn",
-        "struct"
+        "struct",
+        "testsuite",
+        "uploaders"
     ]
 }
