@@ -3,13 +3,14 @@
 #[cfg(not(test))]
 use log::error;
 
+use std::collections::HashMap;
 #[cfg(test)]
 use std::println as error;
 
 use std::cmp::Ordering;
 
 use crate::util::{parse_package_relation, parse_stanza};
-use crate::{Architecture, Distro, Error, ErrorType, PackageVersion, Priority, Result, Version};
+use crate::{Architecture, Distro, Error, ErrorType, Link, PackageVersion, Priority, Result, Version};
 
 /// The Package struct groups all data about a package.
 ///
@@ -40,13 +41,8 @@ pub struct Package {
     pub replaces: Vec<PackageVersion>,
     pub enhances: Vec<PackageVersion>,
     pub version: Version,
-    pub size: u32,
     pub installed_size: Option<u32>,
-    pub filename: String,
-    pub md5sum: Option<String>,
-    pub sha1: Option<String>,
-    pub sha256: Option<String>,
-    pub sha512: Option<String>,
+    pub link: Link,
     pub maintainer: String,
     pub description: String,
     pub description_md5: Option<String>,
@@ -59,11 +55,17 @@ impl Package {
     pub fn new(
         package: &str,
         version: Version,
-        size: u32,
+        size: usize,
         filename: &str,
         maintainer: &str,
         description: &str,
     ) -> Package {
+        let link = Link { 
+            url: filename.to_string(),
+            size: size,
+            hashes: HashMap::new(),
+        };
+
         Package {
             package: package.to_string(),
             source: None,
@@ -81,13 +83,8 @@ impl Package {
             replaces: Vec::new(),
             enhances: Vec::new(),
             version: version,
-            size: size,
             installed_size: None,
-            filename: filename.to_string(),
-            md5sum: None,
-            sha1: None,
-            sha256: None,
-            sha512: None,
+            link: link,
             maintainer: maintainer.to_string(),
             description: description.to_string(),
             description_md5: None,
@@ -119,7 +116,7 @@ impl Package {
         };
 
         let size = match kv.get("size") {
-            Some(size) => size.parse::<u32>().map_err(|e| {
+            Some(size) => size.parse::<usize>().map_err(|e| {
                 Error::new(
                     &format!("Parsing of size failed! {e}"),
                     ErrorType::InvalidPackageMeta,
@@ -184,28 +181,28 @@ impl Package {
 
         match kv.get("md5sum") {
             Some(md5sum) => {
-                package.md5sum = Some(md5sum.clone());
+                package.link.hashes.insert(crate::LinkHash::Md5,md5sum.to_string());
             }
             None => {}
         }
 
         match kv.get("sha1") {
             Some(sha1) => {
-                package.sha1 = Some(sha1.clone());
+                package.link.hashes.insert(crate::LinkHash::Sha1,sha1.to_string());
             }
             None => {}
         }
 
         match kv.get("sha256") {
             Some(sha256) => {
-                package.sha256 = Some(sha256.clone());
+                package.link.hashes.insert(crate::LinkHash::Sha256, sha256.to_string());
             }
             None => {}
         }
 
         match kv.get("sha512") {
             Some(sha512) => {
-                package.sha512 = Some(sha512.clone());
+                package.link.hashes.insert(crate::LinkHash::Sha512,sha512.to_string());
             }
             None => {}
         }
@@ -345,7 +342,7 @@ impl Ord for Package {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::Key;
+    use crate::{Key, LinkHash};
 
     #[test]
     fn parse_package() {
@@ -414,22 +411,24 @@ Description-md5: 2ab472dd12387a67ae9ecbe0508146a7
             package.depends[4].version,
             Some(Version::from_str("1:1.2.3.3").unwrap())
         );
+
+        let link = package.link;
         assert_eq!(
-            package.filename,
+            link.url,
             "http://archive.ubuntu.com/ubuntu/pool/main/l/linux-s32/linux-headers-5.15.0-1034-s32_5.15.0-1034.43_arm64.deb"
         );
-        assert_eq!(package.size, 2794378);
+        assert_eq!(link.size, 2794378);
         assert_eq!(
-            package.md5sum,
-            Some("69c3ccf8a2a6a7f52cf2d795520fa036".to_string())
+            link.hashes.get(&LinkHash::Md5).unwrap(),
+            "69c3ccf8a2a6a7f52cf2d795520fa036"
         );
         assert_eq!(
-            package.sha1,
-            Some("7fe7be41e74389346df466e000bbeae8e36040ef".to_string())
+            link.hashes.get(&LinkHash::Sha1).unwrap(),
+            "7fe7be41e74389346df466e000bbeae8e36040ef"
         );
         assert_eq!(
-            package.sha256,
-            Some("70372f37d5206a2d52eef900bbf7fbf09e285aba38dcb66ef5d3ce1385f11a1f".to_string())
+            link.hashes.get(&LinkHash::Sha256).unwrap(),
+            "70372f37d5206a2d52eef900bbf7fbf09e285aba38dcb66ef5d3ce1385f11a1f"
         );
         assert_eq!(
             package.description,

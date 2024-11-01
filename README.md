@@ -133,6 +133,31 @@ let release = Release::from_distro(&distro).unwrap();
 release.check_compliance();
 ```
 
+The struct [Release] provides also some convenience methods to access the package indices.
+
+The method [Release::get_package_links] provides all available package indices.
+This means, for each combination of architecture and component,
+the function [get_etag] is used to check if the URL really exists,
+and if the URL exists, the [Link] is provided.
+The return value of this method is a _Vec<(String, Architecture, Link)>_,
+and each tuple consists of _component name_, _architecture_, and _URL to the index as [Link]_.
+
+The method [Release::get_package_index_link] provides the [Link] to one specific package index.
+The parameters are the _component name_ and the _architecture_, and the result is a _[Link]_.
+
+#### Struct Link
+
+The [Link] struct groups references to files, i.e. URLs,
+with the hash sums to verify the file, and the size of the file.
+The supported hash types are MD5, SHA1, SHA256 and SHA512.
+When the file is downloaded, the hash is verified to ensure the integrity.
+
+#### Struct PackageIndex
+
+The struct [PackageIndex] groups all packages of one component and architecture.
+This structure also provides support for parsing the apt repository package index files.
+
+
 ## Limitations
 
 - Apt repositories providing only the old _Release_ with detached _Release.gpg_ signature are not supported.
