@@ -18,6 +18,7 @@
         "libc",
         "libelf",
         "lzma",
+        "println",
         "reqwest",
         "rfind",
         "Riscv",

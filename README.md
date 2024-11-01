@@ -150,13 +150,81 @@ The parameters are the _component name_ and the _architecture_, and the result i
 The [Link] struct groups references to files, i.e. URLs,
 with the hash sums to verify the file, and the size of the file.
 The supported hash types are MD5, SHA1, SHA256 and SHA512.
-When the file is downloaded, the hash is verified to ensure the integrity.
+When the file is downloaded, the best available hash is verified to ensure the integrity.
 
 #### Struct PackageIndex
 
 The struct [PackageIndex] groups all packages of one component and architecture.
 This structure also provides support for parsing the apt repository package index files.
 
+```rust
+use libapt::{Distro, Key, Release, PackageIndex, Architecture};
+
+// Ubuntu Jammy signing key.
+let key = Key::key("/etc/apt/trusted.gpg.d/ubuntu-keyring-2018-archive.gpg");
+
+// Ubuntu Jammy distribution.
+let distro = Distro::repo(
+    "http://archive.ubuntu.com/ubuntu",
+    "jammy",
+    key,
+);
+
+// Parse the InRelease file.
+let release = Release::from_distro(&distro).unwrap();
+
+// Parse the package index of the main component for the amd64 architecture.
+let main_amd64 = PackageIndex::new(&release, "main", &Architecture::Amd64).unwrap();
+
+println!("Ubuntu Jammy main provides {} packages for amd64.", main_amd64.package_count());
+
+// Get a Package from the package index.
+let busybox = main_amd64.get("busybox-static", None).unwrap();
+
+println!("Ubuntu Jammy main provides busybox-static version {:?}.", busybox.version);
+```
+
+#### Struct Package
+
+The metadata about binary packages are grouped in the struct [Package].
+The packages are parsed from the so called _stanzas_ of the package indices.
+
+### Struct SourceIndex
+
+The struct [SourceIndex] groups all source packages of one component.
+This structure also provides support for parsing the apt repository source package index files.
+
+```rust
+use libapt::{Distro, Key, Release, SourceIndex};
+
+// Ubuntu Jammy signing key.
+let key = Key::key("/etc/apt/trusted.gpg.d/ubuntu-keyring-2018-archive.gpg");
+
+// Ubuntu Jammy distribution.
+let distro = Distro::repo(
+    "http://archive.ubuntu.com/ubuntu",
+    "jammy",
+    key,
+);
+
+// Parse the InRelease file.
+let release = Release::from_distro(&distro).unwrap();
+
+// Parse the package index of the main component for the amd64 architecture.
+let main_sources = SourceIndex::new(&release, "main").unwrap();
+
+println!("Ubuntu Jammy main provides {} source packages.", main_sources.package_count());
+
+// Get a Package from the package index.
+let busybox = main_sources.get("busybox", None).unwrap();
+
+println!("Ubuntu Jammy main provides busybox version {:?}.", busybox.version);
+```
+
+#### Struct Source
+
+The metadata about source packages are grouped in the struct [Source].
+The source packages are parsed from the so called _stanzas_ of the source package indices.
 
 ## Limitations
 
@@ -165,17 +233,23 @@ This structure also provides support for parsing the apt repository package inde
     - rust-lzma requires _liblzma-dev_ and _pkg-config_
     - reqwest requires _libssl-dev_
 
-## Usage
-
-TODO: describe
-
 ## Examples
 
 Libapt provides some example applications.
 You can run the examples using the command `cargo run --example NAME`,
 where name is the name of the example.
 
+### The "hello" example.
+
+The hello example runs the code given above in the architecture section.
+You can run it with the command `cargo run --example hello`.
+
 ### Test the examples
 
 Some of the example tests are black box tests and depend on the binaries to exist.
 Run `cargo build --examples` before `cargo test --examples`, else these tests will fail.
+
+## Potential future improvements
+
+- Optional lossy parsing, i.e. log unexpected input but not stop parsing.
+- Update metadata based on last _etag_.
