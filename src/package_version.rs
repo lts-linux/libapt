@@ -81,10 +81,10 @@ impl PackageVersion {
         // Get the package name.
         let (name, desc) = if let Some(pos) = desc.find(" ") {
             let name = &desc[..pos];
-            let desc = &desc[pos+1..];
+            let desc = &desc[pos + 1..];
 
             let name = if let Some(pos) = name.find(":") {
-                let arch = &name[pos+1..];
+                let arch = &name[pos + 1..];
                 let name = &name[..pos];
 
                 architectures.push(Architecture::from_str(arch)?);
@@ -102,7 +102,7 @@ impl PackageVersion {
         // Check for architecture list
         if let Some(start) = desc.find("[") {
             if let Some(end) = desc.find("]") {
-                let archs = &desc[start+1..end];
+                let archs = &desc[start + 1..end];
                 for arch in archs.split(" ") {
                     architectures.push(Architecture::from_str(arch)?);
                 }
@@ -114,11 +114,11 @@ impl PackageVersion {
         let mut relation: Option<VersionRelation> = None;
         if let Some(start) = desc.find("(") {
             if let Some(end) = desc.find(")") {
-                let vr = &desc[start+1..end];
+                let vr = &desc[start + 1..end];
                 if let Some(pos) = vr.find(" ") {
                     // with relation
                     relation = Some(VersionRelation::from_str(&vr[..pos])?);
-                    version = Some(Version::from_str(&vr[pos+1..])?);
+                    version = Some(Version::from_str(&vr[pos + 1..])?);
                 } else {
                     // no relation
                     version = Some(Version::from_str(vr)?);

@@ -1,14 +1,14 @@
 [package]
 name = "libapt"
-version = "0.1.0"
+version = "1.0.0"
 edition = "2021"
 authors = ["Thomas Irgang <thomas@irgang.eu>"]
-description = "Pure Rust apt library."
-# documentation = ""
+description = "Rust library for interfacing with Debian apt repositories."
+documentation = "https://github.com/lts-linux/libapt"
 readme = "README.md"
-# homepage = "" 
-repository = "https://codeberg.org/tomirgang/libapt"
-license = "Apache-2.0"
+homepage = "" 
+repository = ""
+license-file = "LICENSE"
 keywords = ["apt", "debian", "deb", "linux"]
 categories = ["library", "development-tools"]
 

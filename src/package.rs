@@ -10,7 +10,9 @@ use std::println as error;
 use std::cmp::Ordering;
 
 use crate::util::{parse_package_relation, parse_stanza};
-use crate::{Architecture, Distro, Error, ErrorType, Link, PackageVersion, Priority, Result, Version};
+use crate::{
+    Architecture, Distro, Error, ErrorType, Link, PackageVersion, Priority, Result, Version,
+};
 
 /// The Package struct groups all data about a package.
 ///
@@ -60,7 +62,7 @@ impl Package {
         maintainer: &str,
         description: &str,
     ) -> Package {
-        let link = Link { 
+        let link = Link {
             url: filename.to_string(),
             size: size,
             hashes: HashMap::new(),
@@ -181,28 +183,40 @@ impl Package {
 
         match kv.get("md5sum") {
             Some(md5sum) => {
-                package.link.hashes.insert(crate::LinkHash::Md5,md5sum.to_string());
+                package
+                    .link
+                    .hashes
+                    .insert(crate::LinkHash::Md5, md5sum.to_string());
             }
             None => {}
         }
 
         match kv.get("sha1") {
             Some(sha1) => {
-                package.link.hashes.insert(crate::LinkHash::Sha1,sha1.to_string());
+                package
+                    .link
+                    .hashes
+                    .insert(crate::LinkHash::Sha1, sha1.to_string());
             }
             None => {}
         }
 
         match kv.get("sha256") {
             Some(sha256) => {
-                package.link.hashes.insert(crate::LinkHash::Sha256, sha256.to_string());
+                package
+                    .link
+                    .hashes
+                    .insert(crate::LinkHash::Sha256, sha256.to_string());
             }
             None => {}
         }
 
         match kv.get("sha512") {
             Some(sha512) => {
-                package.link.hashes.insert(crate::LinkHash::Sha512,sha512.to_string());
+                package
+                    .link
+                    .hashes
+                    .insert(crate::LinkHash::Sha512, sha512.to_string());
             }
             None => {}
         }

@@ -358,16 +358,25 @@ impl Source {
 
         match kv.get("package-list") {
             Some(package_list) => {
-                let list: Vec<&str> = package_list.split("\n").filter(|l| !l.trim().is_empty()).collect();
+                let list: Vec<&str> = package_list
+                    .split("\n")
+                    .filter(|l| !l.trim().is_empty())
+                    .collect();
 
                 for line in list {
-                    let parts: Vec<&str> = line.trim().split(" ").map(|p| p.trim()).filter(|l| !l.is_empty()).collect();
+                    let parts: Vec<&str> = line
+                        .trim()
+                        .split(" ")
+                        .map(|p| p.trim())
+                        .filter(|l| !l.is_empty())
+                        .collect();
 
                     // Additional values are ignored.
                     if parts.len() < 4 {
                         return Err(Error::new(
                             &format!("Invalid Package-List line: {line}"),
-                            ErrorType::InvalidPackageMeta));
+                            ErrorType::InvalidPackageMeta,
+                        ));
                     }
 
                     let name = parts[0].to_string();
@@ -376,12 +385,15 @@ impl Source {
                     let priority = Priority::from_str(parts[3])?;
 
                     let architecture: Vec<Architecture> = if parts.len() > 4 {
-                        let architecture: Result<Vec<Architecture>> = parts[4].split(",")
+                        let architecture: Result<Vec<Architecture>> = parts[4]
+                            .split(",")
                             .map(|a| a.trim())
-                            .map(|a| if a.starts_with("arch=") {
-                                &a[5..].trim()
-                            } else {
-                                a
+                            .map(|a| {
+                                if a.starts_with("arch=") {
+                                    &a[5..].trim()
+                                } else {
+                                    a
+                                }
                             })
                             .map(|a| Architecture::from_str(a.trim()))
                             .collect();
@@ -593,10 +605,7 @@ Checksums-Sha512:
             source.vcs_git,
             Some("https://salsa.debian.org/python-team/modules/constantly.git".to_string())
         );
-        assert_eq!(
-            source.directory,
-            "pool/main/c/constantly".to_string()
-        );
+        assert_eq!(source.directory, "pool/main/c/constantly".to_string());
 
         assert_eq!(source.package_list.len(), 1);
 

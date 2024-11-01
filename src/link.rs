@@ -50,7 +50,11 @@ impl Link {
     }
 
     fn split_line(line: &str) -> Result<Vec<&str>> {
-        let parts: Vec<&str> = line.trim().split(" ").filter(|p| !p.trim().is_empty()).collect();
+        let parts: Vec<&str> = line
+            .trim()
+            .split(" ")
+            .filter(|p| !p.trim().is_empty())
+            .collect();
 
         if parts.len() != 3 {
             let message = format!("Invalid URL reference: {line}");

@@ -47,7 +47,7 @@ impl Architecture {
         } else if arch == "any" {
             return Ok(Architecture::Any);
         } else if arch == "x32" {
-           return Ok(Architecture::X32);
+            return Ok(Architecture::X32);
         }
 
         Ok(Architecture::Other(arch.to_string()))
