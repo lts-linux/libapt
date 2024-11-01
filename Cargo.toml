@@ -10,7 +10,7 @@ homepage = "https://lts-linux.eu/projects/libapt/"
 repository = "https://github.com/lts-linux/libapt"
 license-file = "LICENSE"
 keywords = ["apt", "debian", "deb", "linux"]
-categories = ["library", "development-tools"]
+categories = ["api-bindings", "parsing"]
 exclude = ["*.sh", ".*"]
 
 [dependencies]
