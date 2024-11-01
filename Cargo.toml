@@ -6,11 +6,12 @@ authors = ["Thomas Irgang <thomas@irgang.eu>"]
 description = "Rust library for interfacing with Debian apt repositories."
 documentation = "https://github.com/lts-linux/libapt"
 readme = "README.md"
-homepage = "" 
-repository = ""
+homepage = "https://lts-linux.eu/projects/libapt/" 
+repository = "https://github.com/lts-linux/libapt"
 license-file = "LICENSE"
 keywords = ["apt", "debian", "deb", "linux"]
 categories = ["library", "development-tools"]
+exclude = ["*.sh", ".*"]
 
 [dependencies]
 assert_cmd = "2.0.16"
