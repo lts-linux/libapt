@@ -1,3 +1,5 @@
+![aptcheckr logo](Libapt.webp)
+
 # libapt
 
 Libapt is a pure Rust apt library.
