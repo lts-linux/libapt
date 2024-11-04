@@ -87,10 +87,7 @@ impl Distro {
             let url = join_url(&url, "InRelease");
             Ok(url)
         } else {
-            Err(Error::new(
-                "No distro name",
-                crate::ErrorType::InvalidDistro,
-            ))
+            Err(Error::new("No distro name", crate::ErrorType::DistroFormat))
         }
     }
 

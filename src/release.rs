@@ -46,6 +46,7 @@ pub struct Release {
     pub snapshots: Option<String>,
     // internal data
     pub distro: Distro,
+    pub issues: Vec<Error>,
 }
 
 impl Release {
@@ -69,6 +70,7 @@ impl Release {
             changelogs: None,
             snapshots: None,
             distro: distro.clone(),
+            issues: Vec::new(),
         }
     }
 
@@ -107,7 +109,7 @@ impl Release {
                     if !line.contains(":") {
                         return Err(Error::new(
                             &format!("Invalid line! {line}"),
-                            ErrorType::InvalidReleaseFormat,
+                            ErrorType::InReleaseFormat,
                         ));
                     }
 
@@ -195,7 +197,14 @@ impl Release {
                     }
                 }
                 section => {
-                    let link = Link::form_release(line, distro)?;
+                    let link = match Link::form_release(line, distro) {
+                        Ok(link) => link,
+                        Err(e) => {
+                            release.issues.push(e);
+                            continue;
+                        }
+                    };
+
                     let url = link.url.clone();
 
                     if !release.links.contains_key(&url) {
@@ -205,18 +214,30 @@ impl Release {
                     let link = release.links.get_mut(&url).unwrap();
 
                     match section {
-                        ReleaseSection::HashMD5 => {
-                            link.add_hash(line, LinkHash::Md5)?;
-                        }
-                        ReleaseSection::HashSHA1 => {
-                            link.add_hash(line, LinkHash::Sha1)?;
-                        }
-                        ReleaseSection::HashSHA256 => {
-                            link.add_hash(line, LinkHash::Sha256)?;
-                        }
-                        ReleaseSection::HashSHA512 => {
-                            link.add_hash(line, LinkHash::Sha512)?;
-                        }
+                        ReleaseSection::HashMD5 => match link.add_hash(line, LinkHash::Md5) {
+                            Ok(_) => {}
+                            Err(e) => {
+                                release.issues.push(e);
+                            }
+                        },
+                        ReleaseSection::HashSHA1 => match link.add_hash(line, LinkHash::Sha1) {
+                            Ok(_) => {}
+                            Err(e) => {
+                                release.issues.push(e);
+                            }
+                        },
+                        ReleaseSection::HashSHA256 => match link.add_hash(line, LinkHash::Sha256) {
+                            Ok(_) => {}
+                            Err(e) => {
+                                release.issues.push(e);
+                            }
+                        },
+                        ReleaseSection::HashSHA512 => match link.add_hash(line, LinkHash::Sha512) {
+                            Ok(_) => {}
+                            Err(e) => {
+                                release.issues.push(e);
+                            }
+                        },
                         _ => {}
                     };
                 }
@@ -230,28 +251,28 @@ impl Release {
         if self.components.is_empty() {
             return Err(Error::new(
                 "No components provided.",
-                ErrorType::InvalidReleaseFormat,
+                ErrorType::InReleaseStandard,
             ));
         }
 
         if self.architectures.is_empty() {
             return Err(Error::new(
                 "No architectures provided.",
-                ErrorType::InvalidReleaseFormat,
+                ErrorType::InReleaseStandard,
             ));
         }
 
         if self.suite == None && self.codename == None {
             return Err(Error::new(
                 "Neither suite nor codename provided.",
-                ErrorType::InvalidReleaseFormat,
+                ErrorType::InReleaseStandard,
             ));
         }
 
         if self.date == None {
             return Err(Error::new(
                 "No date provided.",
-                ErrorType::InvalidReleaseFormat,
+                ErrorType::InReleaseStandard,
             ));
         }
 
@@ -260,7 +281,7 @@ impl Release {
             if !link.hashes.contains_key(&LinkHash::Sha256) {
                 return Err(Error::new(
                     &format!("No SHA256 hash provided for URL {key}."),
-                    ErrorType::InvalidReleaseFormat,
+                    ErrorType::InReleaseStandard,
                 ));
             }
         }
@@ -329,7 +350,7 @@ impl Release {
         // No link found.
         Err(Error::new(
             &format!("No matching package index found for component {component} and architecture {architecture}!"),
-            ErrorType::DownloadFailure,
+            ErrorType::ApiUsage,
         ))
     }
 }

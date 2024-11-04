@@ -15,6 +15,8 @@ pub struct PackageIndex {
     /// Map of packages, key is the package name.
     /// Vec is used to handle the case of different package versions.
     pub package_map: HashMap<String, Vec<Package>>,
+    /// Package parsing issues.
+    pub issues: Vec<Error>,
 }
 
 impl PackageIndex {
@@ -27,25 +29,27 @@ impl PackageIndex {
         if architecture == &Architecture::Source {
             return Err(Error::new(
                 "Source architecture is not supported by this method!",
-                crate::ErrorType::InvalidPackageMeta,
+                crate::ErrorType::ApiUsage,
             ));
         }
 
         let mut package_index = PackageIndex {
             architecture: architecture.clone(),
             package_map: HashMap::new(),
+            issues: Vec::new(),
         };
 
         let link = release.get_package_index_link(component, architecture)?;
 
-        package_index.parse_index(&link, release)?;
+        package_index.issues = package_index.parse_index(&link, release)?;
 
         Ok(package_index)
     }
 
     /// Download the package index, verify the hash, and parse the content.
-    fn parse_index(&mut self, link: &Link, release: &Release) -> Result<()> {
+    fn parse_index(&mut self, link: &Link, release: &Release) -> Result<Vec<Error>> {
         let content = download_compressed(&link)?;
+        let mut issues = Vec::new();
 
         for stanza in content.split("\n\n") {
             let stanza = stanza.trim();
@@ -54,11 +58,13 @@ impl PackageIndex {
                 continue;
             }
 
-            let package = Package::from_stanza(stanza, &release.distro)?;
-            self.add(package);
+            match Package::from_stanza(stanza, &release.distro) {
+                Ok(package) => self.add(package),
+                Err(e) => issues.push(e),
+            }
         }
 
-        Ok(())
+        Ok(issues)
     }
 
     // Add package to index.

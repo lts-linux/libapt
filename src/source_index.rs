@@ -5,7 +5,7 @@ use std::collections::HashMap;
 
 use crate::util::download_compressed;
 pub use crate::Result;
-use crate::{Architecture, Link, PackageVersion, Release, Source};
+use crate::{Architecture, Error, Link, PackageVersion, Release, Source};
 
 #[derive(Debug, Deserialize, Serialize)]
 /// A SourceIndex is a set of packages for a specific architecture and component.
@@ -13,6 +13,7 @@ pub struct SourceIndex {
     /// Map of source packages, key is the source package name.
     /// Vec is used to handle the case of different package versions.
     pub package_map: HashMap<String, Vec<Source>>,
+    pub issues: Vec<Error>,
 }
 
 impl SourceIndex {
@@ -20,6 +21,7 @@ impl SourceIndex {
     pub fn new(release: &Release, component: &str) -> Result<SourceIndex> {
         let mut source_index = SourceIndex {
             package_map: HashMap::new(),
+            issues: Vec::new(),
         };
 
         let link = release.get_package_index_link(component, &Architecture::Source)?;
@@ -40,8 +42,10 @@ impl SourceIndex {
                 continue;
             }
 
-            let source = Source::from_stanza(stanza, &release.distro)?;
-            self.add(source);
+            match Source::from_stanza(stanza, &release.distro) {
+                Ok(source) => self.add(source),
+                Err(e) => self.issues.push(e),
+            }
         }
 
         Ok(())

@@ -70,6 +70,7 @@ pub struct Source {
     pub priority: Option<Priority>,
     // list of sections is unstable, not using type.
     pub section: Option<String>,
+    pub issues: Vec<Error>,
 }
 
 impl Source {
@@ -117,6 +118,7 @@ impl Source {
             priority: None,
             // list of sections is unstable, not using type.
             section: None,
+            issues: Vec::new(),
         }
     }
 
@@ -129,7 +131,7 @@ impl Source {
             None => {
                 let message = format!("Invalid source stanza, format missing!\n{stanza}");
                 error!("{}", &message);
-                return Err(Error::new(&message, ErrorType::InvalidPackageMeta));
+                return Err(Error::new(&message, ErrorType::SourceFormat));
             }
         };
 
@@ -138,7 +140,7 @@ impl Source {
             None => {
                 let message = format!("Invalid source stanza, package missing!\n{stanza}");
                 error!("{}", &message);
-                return Err(Error::new(&message, ErrorType::InvalidPackageMeta));
+                return Err(Error::new(&message, ErrorType::SourceFormat));
             }
         };
 
@@ -147,7 +149,7 @@ impl Source {
             None => {
                 let message = format!("Invalid stanza, version missing!\n{stanza}");
                 error!("{}", &message);
-                return Err(Error::new(&message, ErrorType::InvalidPackageMeta));
+                return Err(Error::new(&message, ErrorType::SourceFormat));
             }
         };
 
@@ -156,7 +158,7 @@ impl Source {
             None => {
                 let message = format!("Invalid source stanza, maintainer missing!\n{stanza}");
                 error!("{}", &message);
-                return Err(Error::new(&message, ErrorType::InvalidPackageMeta));
+                return Err(Error::new(&message, ErrorType::SourceFormat));
             }
         };
 
@@ -165,7 +167,7 @@ impl Source {
             None => {
                 let message = format!("Invalid source stanza, directory missing!\n{stanza}");
                 error!("{}", &message);
-                return Err(Error::new(&message, ErrorType::InvalidPackageMeta));
+                return Err(Error::new(&message, ErrorType::SourceFormat));
             }
         };
 
@@ -202,10 +204,14 @@ impl Source {
         }
 
         match kv.get("priority") {
-            Some(priority) => {
-                let priority = Priority::from_str(priority)?;
-                source.priority = Some(priority);
-            }
+            Some(priority) => match Priority::from_str(priority) {
+                Ok(priority) => {
+                    source.priority = Some(priority);
+                }
+                Err(e) => {
+                    source.issues.push(e);
+                }
+            },
             None => {}
         }
 
@@ -217,44 +223,74 @@ impl Source {
         }
 
         match kv.get("build-depends") {
-            Some(build_depends) => {
-                source.build_depends = parse_package_relation(build_depends)?;
-            }
+            Some(build_depends) => match parse_package_relation(build_depends) {
+                Ok(build_depends) => {
+                    source.build_depends = build_depends;
+                }
+                Err(e) => {
+                    source.issues.push(e);
+                }
+            },
             None => {}
         };
 
         match kv.get("build-depends-indep") {
-            Some(build_depends_indep) => {
-                source.build_depends_indep = parse_package_relation(build_depends_indep)?;
-            }
+            Some(build_depends_indep) => match parse_package_relation(build_depends_indep) {
+                Ok(build_depends_indep) => {
+                    source.build_depends_indep = build_depends_indep;
+                }
+                Err(e) => {
+                    source.issues.push(e);
+                }
+            },
             None => {}
         };
 
         match kv.get("build-depends-arch") {
-            Some(build_depends_arch) => {
-                source.build_depends_arch = parse_package_relation(build_depends_arch)?;
-            }
+            Some(build_depends_arch) => match parse_package_relation(build_depends_arch) {
+                Ok(build_depends_arch) => {
+                    source.build_depends_arch = build_depends_arch;
+                }
+                Err(e) => {
+                    source.issues.push(e);
+                }
+            },
             None => {}
         };
 
         match kv.get("build-conflicts") {
-            Some(build_conflicts) => {
-                source.build_conflicts = parse_package_relation(build_conflicts)?;
-            }
+            Some(build_conflicts) => match parse_package_relation(build_conflicts) {
+                Ok(build_conflicts) => {
+                    source.build_conflicts = build_conflicts;
+                }
+                Err(e) => {
+                    source.issues.push(e);
+                }
+            },
             None => {}
         };
 
         match kv.get("build-conflicts-indep") {
-            Some(build_conflicts_indep) => {
-                source.build_conflicts_indep = parse_package_relation(build_conflicts_indep)?;
-            }
+            Some(build_conflicts_indep) => match parse_package_relation(build_conflicts_indep) {
+                Ok(build_conflicts_indep) => {
+                    source.build_conflicts_indep = build_conflicts_indep;
+                }
+                Err(e) => {
+                    source.issues.push(e);
+                }
+            },
             None => {}
         };
 
         match kv.get("build-conflicts-arch") {
-            Some(build_conflicts_arch) => {
-                source.build_conflicts_arch = parse_package_relation(build_conflicts_arch)?;
-            }
+            Some(build_conflicts_arch) => match parse_package_relation(build_conflicts_arch) {
+                Ok(build_conflicts_arch) => {
+                    source.build_conflicts_arch = build_conflicts_arch;
+                }
+                Err(e) => {
+                    source.issues.push(e);
+                }
+            },
             None => {}
         };
 
@@ -376,14 +412,20 @@ impl Source {
                     if parts.len() < 4 {
                         return Err(Error::new(
                             &format!("Invalid Package-List line: {line}"),
-                            ErrorType::InvalidPackageMeta,
+                            ErrorType::SourceFormat,
                         ));
                     }
 
                     let name = parts[0].to_string();
                     let package_type = parts[1].to_string();
                     let section = parts[2].to_string();
-                    let priority = Priority::from_str(parts[3])?;
+                    let priority = match Priority::from_str(parts[3]) {
+                        Ok(priority) => priority,
+                        Err(e) => {
+                            source.issues.push(e);
+                            continue;
+                        }
+                    };
 
                     let architecture: Vec<Architecture> = if parts.len() > 4 {
                         let architecture: Result<Vec<Architecture>> = parts[4]
@@ -417,28 +459,51 @@ impl Source {
             None => {}
         }
 
-        source.parse_files(kv.get("files"), distro, LinkHash::Md5, true, stanza)?;
-        source.parse_files(
+        match source.parse_files(kv.get("files"), distro, LinkHash::Md5, true, stanza) {
+            Ok(_) => {}
+            Err(e) => {
+                source.issues.push(e);
+            }
+        }
+
+        match source.parse_files(
             kv.get("checksums-sha256"),
             distro,
             LinkHash::Sha256,
             true,
             stanza,
-        )?;
-        source.parse_files(
+        ) {
+            Ok(_) => {}
+            Err(e) => {
+                source.issues.push(e);
+            }
+        }
+
+        match source.parse_files(
             kv.get("checksums-sha512"),
             distro,
             LinkHash::Sha512,
             false,
             stanza,
-        )?;
-        source.parse_files(
+        ) {
+            Ok(_) => {}
+            Err(e) => {
+                source.issues.push(e);
+            }
+        }
+
+        match source.parse_files(
             kv.get("checksums-sha1"),
             distro,
             LinkHash::Sha1,
             false,
             stanza,
-        )?;
+        ) {
+            Ok(_) => {}
+            Err(e) => {
+                source.issues.push(e);
+            }
+        }
 
         Ok(source)
     }
@@ -477,7 +542,7 @@ impl Source {
                 if required {
                     let message = format!("Invalid stanza, files missing!\n{stanza}");
                     error!("{}", &message);
-                    return Err(Error::new(&message, ErrorType::InvalidPackageMeta));
+                    return Err(Error::new(&message, ErrorType::SourceFormat));
                 }
             }
         };

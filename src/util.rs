@@ -28,7 +28,7 @@ pub fn get_etag(url: &str) -> Result<String> {
     if !response.status().is_success() {
         return Err(Error::new(
             &format!("Url {url} download failed!"),
-            crate::ErrorType::DownloadFailure,
+            crate::ErrorType::Download,
         ));
     }
 
@@ -37,7 +37,7 @@ pub fn get_etag(url: &str) -> Result<String> {
         None => {
             return Err(Error::new(
                 &format!("No etag found in header of {url}!"),
-                crate::ErrorType::DownloadFailure,
+                crate::ErrorType::Download,
             ));
         }
     };
@@ -91,7 +91,7 @@ fn verify_hash(content: &Vec<u8>, link: &Link) -> Result<()> {
     } else {
         return Err(Error::new(
             &format!("No hash for URL {} provided!", &link.url),
-            crate::ErrorType::DownloadFailure,
+            crate::ErrorType::Download,
         ));
     };
 
@@ -100,7 +100,7 @@ fn verify_hash(content: &Vec<u8>, link: &Link) -> Result<()> {
     if hash != data_hash {
         return Err(Error::new(
             &format!("{} hash verification of URL {} failed!", name, &link.url),
-            crate::ErrorType::DownloadFailure,
+            crate::ErrorType::Download,
         ));
     } else {
         info!("Verified {} hash for URL {} successfully.", name, &link.url);

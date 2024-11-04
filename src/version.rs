@@ -65,7 +65,7 @@ impl Version {
                     Err(e) => {
                         let message = format!("Parse epoch error! {e}");
                         error!("{}", &message);
-                        return Err(Error::new(&message, ErrorType::VerificationError));
+                        return Err(Error::new(&message, ErrorType::Version));
                     }
                 };
 

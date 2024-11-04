@@ -11,21 +11,26 @@ use std::string::FromUtf8Error;
 pub type Result<T> = std::result::Result<T, Error>;
 
 /// The ErrorTypes provide a rough classification of the errors.
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
 pub enum ErrorType {
-    DownloadFailure,
-    InvalidReleaseFormat,
+    Download,
+    InReleaseFormat,
+    InReleaseStandard,
     UnknownArchitecture,
-    VerificationError,
-    InvalidDistro,
+    Verification,
+    DistroFormat,
     UnknownPriority,
-    InvalidPackageMeta,
+    PackageFormat,
+    SourceFormat,
     UnknownVersionRelation,
     InvalidArchitecture,
+    InvalidReference,
+    ApiUsage,
+    Version,
 }
 
 /// Libapt error type.
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
 pub struct Error {
     message: Option<String>,
     error_type: ErrorType,
@@ -34,15 +39,20 @@ pub struct Error {
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let description = match self.error_type {
-            ErrorType::DownloadFailure => "Download failed",
-            ErrorType::InvalidReleaseFormat => "Invalid Release file format",
+            ErrorType::Download => "Download failed",
+            ErrorType::InReleaseFormat => "Invalid Release file format",
             ErrorType::UnknownArchitecture => "Unknown Architecture",
-            ErrorType::VerificationError => "Invalid value",
-            ErrorType::InvalidDistro => "Invalid distro",
+            ErrorType::Verification => "Invalid value",
+            ErrorType::DistroFormat => "Invalid distro",
             ErrorType::UnknownPriority => "Unknown priority",
-            ErrorType::InvalidPackageMeta => "Invalid package metadata",
+            ErrorType::PackageFormat => "Invalid package metadata",
+            ErrorType::SourceFormat => "Invalid source package metadata",
             ErrorType::UnknownVersionRelation => "Unknown package version relation",
             ErrorType::InvalidArchitecture => "Not supported architecture",
+            ErrorType::InvalidReference => "Invalid URL reference",
+            ErrorType::ApiUsage => "API usage issue",
+            ErrorType::InReleaseStandard => "Debian policy InRelease standard violation",
+            ErrorType::Version => "Invalid package version",
         };
 
         if let Some(message) = &self.message {
@@ -62,23 +72,23 @@ impl Error {
     }
 
     pub fn from_reqwest(error: reqwest::Error, url: &str) -> Error {
-        Error::from_error(&error, ErrorType::DownloadFailure, &url)
+        Error::from_error(&error, ErrorType::Download, &url)
     }
 
     pub fn from_to_str_error(error: ToStrError, url: &str) -> Error {
-        Error::from_error(&error, ErrorType::DownloadFailure, &url)
+        Error::from_error(&error, ErrorType::Download, &url)
     }
 
     pub fn from_lzma(error: lzma::LzmaError, url: &str) -> Error {
-        Error::from_error(&error, ErrorType::DownloadFailure, &url)
+        Error::from_error(&error, ErrorType::Download, &url)
     }
 
     pub fn from_io_error(error: io::Error, url: &str) -> Error {
-        Error::from_error(&error, ErrorType::DownloadFailure, &url)
+        Error::from_error(&error, ErrorType::Download, &url)
     }
 
     pub fn from_utf8_error(error: FromUtf8Error, url: &str) -> Error {
-        Error::from_error(&error, ErrorType::DownloadFailure, &url)
+        Error::from_error(&error, ErrorType::Download, &url)
     }
 
     pub fn from_error(

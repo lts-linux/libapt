@@ -59,7 +59,7 @@ impl Link {
 
         if parts.len() != 3 {
             let message = format!("Invalid URL reference: {line}");
-            return Err(Error::new(&message, ErrorType::InvalidPackageMeta));
+            return Err(Error::new(&message, ErrorType::InvalidReference));
         }
 
         Ok(parts)
@@ -77,7 +77,7 @@ impl Link {
             Ok(size) => size,
             Err(e) => {
                 let message = format!("Invalid URL reference, invalid size: {e}\n{line}");
-                return Err(Error::new(&message, ErrorType::InvalidPackageMeta));
+                return Err(Error::new(&message, ErrorType::InvalidReference));
             }
         };
 

@@ -26,7 +26,7 @@ fn _get_key_content(url: &str) -> Result<String> {
             Err(e) => {
                 let message = format!("Download of key {url} failed! {e}");
                 error!("{}", &message);
-                Err(Error::new(&message, crate::ErrorType::VerificationError))
+                Err(Error::new(&message, crate::ErrorType::Verification))
             }
         }
     } else {
@@ -36,7 +36,7 @@ fn _get_key_content(url: &str) -> Result<String> {
             Err(e) => {
                 let message = format!("Reading key {url} failed! {e}");
                 error!("{}", &message);
-                Err(Error::new(&message, crate::ErrorType::VerificationError))
+                Err(Error::new(&message, crate::ErrorType::Verification))
             }
         }
     }
@@ -52,7 +52,7 @@ fn _get_key(distro: &Distro) -> Result<Option<SignedPublicKey>> {
                 SignedPublicKey::from_string(&content).map_err(|e| {
                     Error::new(
                         &format!("Loading key {url} failed! {e}"),
-                        crate::ErrorType::VerificationError,
+                        crate::ErrorType::Verification,
                     )
                 })?;
             public_key
@@ -62,7 +62,7 @@ fn _get_key(distro: &Distro) -> Result<Option<SignedPublicKey>> {
             let file = File::open(url).map_err(|e| {
                 Error::new(
                     &format!("Loading key failed! {e}"),
-                    crate::ErrorType::VerificationError,
+                    crate::ErrorType::Verification,
                 )
             })?;
 
@@ -70,7 +70,7 @@ fn _get_key(distro: &Distro) -> Result<Option<SignedPublicKey>> {
                 info!("Signature verification skipped for {:?}.", &distro.name);
                 Error::new(
                     &format!("Loading key failed! {e}"),
-                    crate::ErrorType::VerificationError,
+                    crate::ErrorType::Verification,
                 )
             })?
         }
@@ -85,7 +85,7 @@ fn _get_key(distro: &Distro) -> Result<Option<SignedPublicKey>> {
         Err(e) => {
             let message = format!("Public key for distro {:?} is NOT OK! {e}", &distro.name);
             error!("{}", &message);
-            return Err(Error::new(&message, crate::ErrorType::VerificationError));
+            return Err(Error::new(&message, crate::ErrorType::Verification));
         }
     };
 
@@ -114,7 +114,7 @@ pub fn verify_in_release(content: String, distro: &Distro) -> Result<String> {
                 &distro.name
             );
             error!("{}", &message);
-            return Err(Error::new(&message, crate::ErrorType::VerificationError));
+            return Err(Error::new(&message, crate::ErrorType::Verification));
         }
     }
 

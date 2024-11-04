@@ -50,7 +50,8 @@ pub struct Package {
     pub description: String,
     pub description_md5: Option<String>,
     pub homepage: Option<String>,
-    pub built_using: Option<Vec<PackageVersion>>,
+    pub built_using: Vec<PackageVersion>,
+    pub issues: Vec<Error>,
 }
 
 impl Package {
@@ -92,7 +93,8 @@ impl Package {
             description: description.to_string(),
             description_md5: None,
             homepage: None,
-            built_using: None,
+            built_using: Vec::new(),
+            issues: Vec::new(),
         }
     }
 
@@ -105,7 +107,7 @@ impl Package {
             None => {
                 let message = format!("Invalid stanza, package missing!\n{stanza}");
                 error!("{}", &message);
-                return Err(Error::new(&message, ErrorType::InvalidPackageMeta));
+                return Err(Error::new(&message, ErrorType::PackageFormat));
             }
         };
 
@@ -114,7 +116,7 @@ impl Package {
             None => {
                 let message = format!("Invalid stanza, version missing!\n{stanza}");
                 error!("{}", &message);
-                return Err(Error::new(&message, ErrorType::InvalidPackageMeta));
+                return Err(Error::new(&message, ErrorType::PackageFormat));
             }
         };
 
@@ -122,13 +124,13 @@ impl Package {
             Some(size) => size.parse::<usize>().map_err(|e| {
                 Error::new(
                     &format!("Parsing of size failed! {e}"),
-                    ErrorType::InvalidPackageMeta,
+                    ErrorType::PackageFormat,
                 )
             })?,
             None => {
                 let message = format!("Invalid stanza, version missing!\n{stanza}");
                 error!("{}", &message);
-                return Err(Error::new(&message, ErrorType::InvalidPackageMeta));
+                return Err(Error::new(&message, ErrorType::PackageFormat));
             }
         };
 
@@ -137,7 +139,7 @@ impl Package {
             None => {
                 let message = format!("Invalid stanza, filename missing!\n{stanza}");
                 error!("{}", &message);
-                return Err(Error::new(&message, ErrorType::InvalidPackageMeta));
+                return Err(Error::new(&message, ErrorType::PackageFormat));
             }
         };
 
@@ -146,7 +148,7 @@ impl Package {
             None => {
                 let message = format!("Invalid stanza, maintainer missing!\n{stanza}");
                 error!("{}", &message);
-                return Err(Error::new(&message, ErrorType::InvalidPackageMeta));
+                return Err(Error::new(&message, ErrorType::PackageFormat));
             }
         };
 
@@ -155,7 +157,7 @@ impl Package {
             None => {
                 let message = format!("Invalid stanza, description missing!\n{stanza}");
                 error!("{}", &message);
-                return Err(Error::new(&message, ErrorType::InvalidPackageMeta));
+                return Err(Error::new(&message, ErrorType::PackageFormat));
             }
         };
 
@@ -237,10 +239,12 @@ impl Package {
         }
 
         match kv.get("priority") {
-            Some(priority) => {
-                let priority = Priority::from_str(priority)?;
-                package.priority = Some(priority);
-            }
+            Some(priority) => match Priority::from_str(priority) {
+                Ok(priority) => {
+                    package.priority = Some(priority);
+                }
+                Err(e) => package.issues.push(e),
+            },
             None => {}
         }
 
@@ -260,81 +264,138 @@ impl Package {
                 let is = installed_size.parse::<u32>().map_err(|e| {
                     Error::new(
                         &format!("Parsing of installed_size failed! {e}"),
-                        ErrorType::InvalidPackageMeta,
+                        ErrorType::PackageFormat,
                     )
-                })?;
-                package.installed_size = Some(is);
+                });
+                match is {
+                    Ok(is) => {
+                        package.installed_size = Some(is);
+                    }
+                    Err(e) => {
+                        package.issues.push(e);
+                    }
+                }
             }
             None => {}
         };
 
         match kv.get("depends") {
-            Some(depends) => {
-                package.depends = parse_package_relation(depends)?;
-            }
+            Some(depends) => match parse_package_relation(depends) {
+                Ok(depends) => {
+                    package.depends = depends;
+                }
+                Err(e) => {
+                    package.issues.push(e);
+                }
+            },
             None => {}
         };
 
         match kv.get("pre-depends") {
-            Some(pre_depends) => {
-                package.pre_depends = parse_package_relation(pre_depends)?;
-            }
+            Some(pre_depends) => match parse_package_relation(pre_depends) {
+                Ok(pre_depends) => {
+                    package.pre_depends = pre_depends;
+                }
+                Err(e) => {
+                    package.issues.push(e);
+                }
+            },
             None => {}
         };
 
         match kv.get("recommends") {
-            Some(recommends) => {
-                package.recommends = parse_package_relation(recommends)?;
-            }
+            Some(recommends) => match parse_package_relation(recommends) {
+                Ok(recommends) => {
+                    package.recommends = recommends;
+                }
+                Err(e) => {
+                    package.issues.push(e);
+                }
+            },
             None => {}
         };
 
         match kv.get("suggests") {
-            Some(suggests) => {
-                package.suggests = parse_package_relation(suggests)?;
-            }
+            Some(suggests) => match parse_package_relation(suggests) {
+                Ok(suggests) => {
+                    package.suggests = suggests;
+                }
+                Err(e) => {
+                    package.issues.push(e);
+                }
+            },
             None => {}
         };
 
         match kv.get("breaks") {
-            Some(breaks) => {
-                package.breaks = parse_package_relation(breaks)?;
-            }
+            Some(breaks) => match parse_package_relation(breaks) {
+                Ok(breaks) => {
+                    package.breaks = breaks;
+                }
+                Err(e) => {
+                    package.issues.push(e);
+                }
+            },
             None => {}
         };
 
         match kv.get("conflicts") {
-            Some(conflicts) => {
-                package.conflicts = parse_package_relation(conflicts)?;
-            }
+            Some(conflicts) => match parse_package_relation(conflicts) {
+                Ok(conflicts) => {
+                    package.conflicts = conflicts;
+                }
+                Err(e) => {
+                    package.issues.push(e);
+                }
+            },
             None => {}
         };
 
         match kv.get("provides") {
-            Some(provides) => {
-                package.provides = parse_package_relation(provides)?;
-            }
+            Some(provides) => match parse_package_relation(provides) {
+                Ok(provides) => {
+                    package.provides = provides;
+                }
+                Err(e) => {
+                    package.issues.push(e);
+                }
+            },
             None => {}
         };
 
         match kv.get("replaces") {
-            Some(replaces) => {
-                package.replaces = parse_package_relation(replaces)?;
-            }
+            Some(replaces) => match parse_package_relation(replaces) {
+                Ok(replaces) => {
+                    package.replaces = replaces;
+                }
+                Err(e) => {
+                    package.issues.push(e);
+                }
+            },
             None => {}
         };
 
         match kv.get("enhances") {
-            Some(enhances) => {
-                package.enhances = parse_package_relation(enhances)?;
-            }
+            Some(enhances) => match parse_package_relation(enhances) {
+                Ok(enhances) => {
+                    package.enhances = enhances;
+                }
+                Err(e) => {
+                    package.issues.push(e);
+                }
+            },
             None => {}
         };
 
         match kv.get("built-using") {
-            Some(built_using) => {
-                package.built_using = Some(parse_package_relation(built_using)?);
-            }
+            Some(built_using) => match parse_package_relation(built_using) {
+                Ok(built_using) => {
+                    package.built_using = built_using;
+                }
+                Err(e) => {
+                    package.issues.push(e);
+                }
+            },
             None => {}
         };
 
