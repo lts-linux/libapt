@@ -1,9 +1,10 @@
 //! Implementation of package version dependencies.
+use serde::{Deserialize, Serialize};
 
 use crate::{Architecture, Error, ErrorType, Result, Version};
 
 /// A VersionRelation describes the relation between two package versions.
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Deserialize, Serialize)]
 pub enum VersionRelation {
     StrictSmaller,
     Smaller,
@@ -49,7 +50,7 @@ impl VersionRelation {
 }
 
 /// A PackageVersion describes a package version dependency.
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Deserialize, Serialize)]
 pub struct PackageVersion {
     pub name: String,
     pub architecture: Option<Architecture>,

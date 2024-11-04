@@ -1,11 +1,13 @@
 //! Implementation of the source index parsing.
 
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-use crate::{source, util::download_compressed};
+use crate::util::download_compressed;
 pub use crate::Result;
 use crate::{Architecture, Link, PackageVersion, Release, Source};
 
+#[derive(Debug, Deserialize, Serialize)]
 /// A SourceIndex is a set of packages for a specific architecture and component.
 pub struct SourceIndex {
     /// Map of source packages, key is the source package name.
@@ -94,7 +96,7 @@ impl SourceIndex {
     pub fn get_all(&self, name: &str) -> Vec<Source> {
         match self.package_map.get(name) {
             Some(sources) => sources.clone(),
-            None => Vec::new()
+            None => Vec::new(),
         }
     }
 

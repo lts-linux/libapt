@@ -6,11 +6,12 @@ use log::warn;
 #[cfg(test)]
 use std::println as warn;
 
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 use crate::{source::Source, util::join_url, Distro, Error, ErrorType, Result};
 
-#[derive(Debug, Clone, Eq, PartialEq, Hash)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash, Deserialize, Serialize)]
 pub enum LinkHash {
     Md5,
     Sha1,
@@ -21,7 +22,7 @@ pub enum LinkHash {
 /// Link represents a file referenced from InRelease.
 ///
 /// This type is used to group all hashes for a referenced path.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 pub struct Link {
     pub url: String,
     pub size: usize,

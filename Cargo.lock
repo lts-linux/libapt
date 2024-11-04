@@ -1188,6 +1188,7 @@ dependencies = [
  "regex",
  "reqwest",
  "rust-lzma",
+ "serde",
  "sha1",
  "sha2",
 ]

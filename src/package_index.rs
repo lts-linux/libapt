@@ -1,5 +1,6 @@
 //! Implementation of the package index parsing.
 
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 pub use crate::Result;
@@ -7,6 +8,7 @@ use crate::{util::download_compressed, Error};
 use crate::{Architecture, Link, Package, PackageVersion, Release};
 
 /// A PackageIndex is a set of packages for a specific architecture and component.
+#[derive(Debug, Deserialize, Serialize)]
 pub struct PackageIndex {
     /// Architecture of the packages.
     pub architecture: Architecture,
@@ -108,7 +110,7 @@ impl PackageIndex {
     pub fn get_all(&self, name: &str) -> Vec<Package> {
         match self.package_map.get(name) {
             Some(sources) => sources.clone(),
-            None => Vec::new()
+            None => Vec::new(),
         }
     }
 

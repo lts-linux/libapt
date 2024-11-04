@@ -6,6 +6,7 @@ use log::error;
 #[cfg(test)]
 use std::println as error;
 
+use serde::{Deserialize, Serialize};
 use std::{cmp::Ordering, collections::HashMap};
 
 use crate::util::{parse_package_relation, parse_stanza};
@@ -15,7 +16,7 @@ use crate::{
 };
 
 /// A PackageReference is a Debian source package package-list entry.
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
 pub struct PackageReference {
     pub name: String,
     pub package_type: String,
@@ -32,7 +33,7 @@ pub struct PackageReference {
 /// For parsing the single entries the
 /// [Debian Policy Source Package specification](https://www.debian.org/doc/debian-policy/ch-controlfields.html#debian-source-package-control-files-dsc)
 /// is used as a base.
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
 pub struct Source {
     // fields from apt source package index
     pub format: String,

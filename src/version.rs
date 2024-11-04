@@ -6,6 +6,7 @@ use log::error;
 #[cfg(test)]
 use std::println as error;
 
+use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 use std::iter::zip;
 
@@ -43,7 +44,7 @@ fn split_parts(version: &str) -> Vec<String> {
 }
 
 /// The Version struct groups the Debian version parts.
-#[derive(Eq, Debug, Clone)]
+#[derive(Eq, Debug, Clone, Deserialize, Serialize)]
 pub struct Version {
     // see https://www.debian.org/doc/debian-policy/ch-controlfields.html#version
     pub epoch: Option<u8>,

@@ -7,6 +7,7 @@ use std::collections::HashMap;
 #[cfg(test)]
 use std::println as error;
 
+use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 
 use crate::util::{parse_package_relation, parse_stanza};
@@ -22,7 +23,7 @@ use crate::{
 /// For parsing the single entries the
 /// [Debian Wiki Binary Package specification](https://www.debian.org/doc/debian-policy/ch-controlfields.html#debian-binary-package-control-files-debian-control)
 /// is used as a base.
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
 pub struct Package {
     // fields from apt package index
     pub package: String,

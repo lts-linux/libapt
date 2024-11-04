@@ -10,6 +10,8 @@ use chrono::DateTime;
 use chrono::FixedOffset;
 use std::collections::HashMap;
 
+use serde::{Deserialize, Serialize};
+
 use crate::signature::verify_in_release;
 use crate::util::{download, get_etag};
 use crate::Architecture;
@@ -23,7 +25,7 @@ use crate::{Error, ErrorType, Result};
 /// When the InRelease file is parsed, all specified values from
 /// [Debian Wiki InRelease specification](https://wiki.debian.org/DebianRepository/Format#A.22Release.22_files)
 /// are considered.
-#[derive(Debug)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct Release {
     // fields from apt release file
     hash: Option<String>,

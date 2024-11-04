@@ -1,4 +1,5 @@
 //! Struct Distro and related structs and enums.
+use serde::{Deserialize, Serialize};
 
 use crate::util::join_url;
 use crate::{Error, Result};
@@ -13,7 +14,7 @@ use crate::{Error, Result};
 ///
 /// The type _Key::NoSignatureCheck_ can be used to skip the verification of
 /// the distribution index.
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
 pub enum Key {
     Key(String),
     ArmoredKey(String),
@@ -43,7 +44,7 @@ impl Key {
 ///
 /// If a flat repo which makes not use of a subfolder, e.g. Suse Open Build Service,
 /// the path _./_ can be used, like in apt source lists.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Distro {
     pub url: String,
     pub name: Option<String>,

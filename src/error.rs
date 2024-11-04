@@ -1,4 +1,5 @@
 //! Error and Result types.
+use serde::{Deserialize, Serialize};
 
 use lzma;
 use reqwest;
@@ -10,7 +11,7 @@ use std::string::FromUtf8Error;
 pub type Result<T> = std::result::Result<T, Error>;
 
 /// The ErrorTypes provide a rough classification of the errors.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub enum ErrorType {
     DownloadFailure,
     InvalidReleaseFormat,
@@ -24,7 +25,7 @@ pub enum ErrorType {
 }
 
 /// Libapt error type.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Error {
     message: Option<String>,
     error_type: ErrorType,
