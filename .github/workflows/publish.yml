@@ -1,4 +1,4 @@
-name: Publcat ish to Cargo
+name: Publish to Cargo
 
 permissions:
   contents: write
