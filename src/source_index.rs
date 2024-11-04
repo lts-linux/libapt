@@ -2,7 +2,7 @@
 
 use std::collections::HashMap;
 
-use crate::util::download_compressed;
+use crate::{source, util::download_compressed};
 pub use crate::Result;
 use crate::{Architecture, Link, PackageVersion, Release, Source};
 
@@ -10,7 +10,7 @@ use crate::{Architecture, Link, PackageVersion, Release, Source};
 pub struct SourceIndex {
     /// Map of source packages, key is the source package name.
     /// Vec is used to handle the case of different package versions.
-    package_map: HashMap<String, Vec<Source>>,
+    pub package_map: HashMap<String, Vec<Source>>,
 }
 
 impl SourceIndex {
@@ -87,6 +87,14 @@ impl SourceIndex {
                 }
             }
             None => None,
+        }
+    }
+
+    /// Get all available versions of the given source package.
+    pub fn get_all(&self, name: &str) -> Vec<Source> {
+        match self.package_map.get(name) {
+            Some(sources) => sources.clone(),
+            None => Vec::new()
         }
     }
 

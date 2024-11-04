@@ -12,7 +12,7 @@ pub struct PackageIndex {
     pub architecture: Architecture,
     /// Map of packages, key is the package name.
     /// Vec is used to handle the case of different package versions.
-    package_map: HashMap<String, Vec<Package>>,
+    pub package_map: HashMap<String, Vec<Package>>,
 }
 
 impl PackageIndex {
@@ -101,6 +101,14 @@ impl PackageIndex {
                 }
             }
             None => None,
+        }
+    }
+
+    /// Get all available versions of the given binary package.
+    pub fn get_all(&self, name: &str) -> Vec<Package> {
+        match self.package_map.get(name) {
+            Some(sources) => sources.clone(),
+            None => Vec::new()
         }
     }
 
