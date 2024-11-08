@@ -118,6 +118,8 @@ and the content is parsed.
 ```rust
 use libapt::{Distro, Key, Release};
 
+tokio_test::block_on(async {
+
 // Ubuntu Jammy signing key.
 let key = Key::key("/etc/apt/trusted.gpg.d/ubuntu-keyring-2018-archive.gpg");
 
@@ -129,10 +131,12 @@ let distro = Distro::repo(
 );
 
 // Parse the InRelease file.
-let release = Release::from_distro(&distro).unwrap();
+let release = Release::from_distro(&distro).await.unwrap();
 
 // Check for compliance with https://wiki.debian.org/DebianRepository/Format#A.22Release.22_files.
 release.check_compliance();
+
+})
 ```
 
 The struct [Release] provides also some convenience methods to access the package indices.
@@ -162,6 +166,8 @@ This structure also provides support for parsing the apt repository package inde
 ```rust
 use libapt::{Distro, Key, Release, PackageIndex, Architecture};
 
+tokio_test::block_on(async {
+
 // Ubuntu Jammy signing key.
 let key = Key::key("/etc/apt/trusted.gpg.d/ubuntu-keyring-2018-archive.gpg");
 
@@ -173,10 +179,10 @@ let distro = Distro::repo(
 );
 
 // Parse the InRelease file.
-let release = Release::from_distro(&distro).unwrap();
+let release = Release::from_distro(&distro).await.unwrap();
 
 // Parse the package index of the main component for the amd64 architecture.
-let main_amd64 = PackageIndex::new(&release, "main", &Architecture::Amd64).unwrap();
+let main_amd64 = PackageIndex::new(&release, "main", &Architecture::Amd64).await.unwrap();
 
 println!("Ubuntu Jammy main provides {} packages for amd64.", main_amd64.package_count());
 
@@ -184,6 +190,8 @@ println!("Ubuntu Jammy main provides {} packages for amd64.", main_amd64.package
 let busybox = main_amd64.get("busybox-static", None).unwrap();
 
 println!("Ubuntu Jammy main provides busybox-static version {:?}.", busybox.version);
+
+})
 ```
 
 #### Struct Package
@@ -199,6 +207,8 @@ This structure also provides support for parsing the apt repository source packa
 ```rust
 use libapt::{Distro, Key, Release, SourceIndex};
 
+tokio_test::block_on(async {
+
 // Ubuntu Jammy signing key.
 let key = Key::key("/etc/apt/trusted.gpg.d/ubuntu-keyring-2018-archive.gpg");
 
@@ -210,10 +220,10 @@ let distro = Distro::repo(
 );
 
 // Parse the InRelease file.
-let release = Release::from_distro(&distro).unwrap();
+let release = Release::from_distro(&distro).await.unwrap();
 
 // Parse the package index of the main component for the amd64 architecture.
-let main_sources = SourceIndex::new(&release, "main").unwrap();
+let main_sources = SourceIndex::new(&release, "main").await.unwrap();
 
 println!("Ubuntu Jammy main provides {} source packages.", main_sources.package_count());
 
@@ -221,6 +231,8 @@ println!("Ubuntu Jammy main provides {} source packages.", main_sources.package_
 let busybox = main_sources.get("busybox", None).unwrap();
 
 println!("Ubuntu Jammy main provides busybox version {:?}.", busybox.version);
+
+})
 ```
 
 #### Struct Source

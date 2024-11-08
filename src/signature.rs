@@ -18,10 +18,10 @@ use crate::{Distro, Error, Key, Result};
 ///
 /// If the given url starts with http a download is tried,
 /// else the url is interpreted as local file path.
-fn _get_key_content(url: &str) -> Result<String> {
+async fn _get_key_content(url: &str) -> Result<String> {
     if url.starts_with("http") {
         info!("Download key from URL {url}.");
-        match download(&url) {
+        match download(&url).await {
             Ok(content) => Ok(content),
             Err(e) => {
                 let message = format!("Download of key {url} failed! {e}");
@@ -43,11 +43,11 @@ fn _get_key_content(url: &str) -> Result<String> {
 }
 
 /// Get the signing key for the given Distro.
-fn _get_key(distro: &Distro) -> Result<Option<SignedPublicKey>> {
+async fn _get_key(distro: &Distro) -> Result<Option<SignedPublicKey>> {
     let key = match &distro.key {
         Key::ArmoredKey(url) => {
             info!("Get armored key for {:?} from {url}.", &distro.name);
-            let content = _get_key_content(&url)?;
+            let content = _get_key_content(&url).await?;
             let (public_key, _headers_public) =
                 SignedPublicKey::from_string(&content).map_err(|e| {
                     Error::new(
@@ -96,10 +96,10 @@ fn _get_key(distro: &Distro) -> Result<Option<SignedPublicKey>> {
 ///
 /// The full content of the inline signed file is given as content.
 /// The given Distro is used to specify the signing key.
-pub fn verify_in_release(content: String, distro: &Distro) -> Result<String> {
+pub async fn verify_in_release(content: String, distro: &Distro) -> Result<String> {
     info!("Verifying signature of distro {:?}.", &distro.name);
 
-    let key = match _get_key(distro)? {
+    let key = match _get_key(distro).await? {
         Some(key) => key,
         None => return Ok(content),
     };

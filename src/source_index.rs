@@ -18,22 +18,24 @@ pub struct SourceIndex {
 
 impl SourceIndex {
     /// Parse a package index.
-    pub fn new(release: &Release, component: &str) -> Result<SourceIndex> {
+    pub async fn new(release: &Release, component: &str) -> Result<SourceIndex> {
         let mut source_index = SourceIndex {
             package_map: HashMap::new(),
             issues: Vec::new(),
         };
 
-        let link = release.get_package_index_link(component, &Architecture::Source)?;
+        let link = release
+            .get_package_index_link(component, &Architecture::Source)
+            .await?;
 
-        source_index.parse_index(&link, release)?;
+        source_index.parse_index(&link, release).await?;
 
         Ok(source_index)
     }
 
     /// Download the source package index, verify the hash, and parse the content.
-    fn parse_index(&mut self, link: &Link, release: &Release) -> Result<()> {
-        let content = download_compressed(&link)?;
+    async fn parse_index(&mut self, link: &Link, release: &Release) -> Result<()> {
+        let content = download_compressed(&link).await?;
 
         for stanza in content.split("\n\n") {
             let stanza = stanza.trim();
@@ -121,17 +123,17 @@ mod tests {
 
     use super::SourceIndex;
 
-    #[test]
-    fn parse_ubuntu_jammy_main_sources() {
+    #[tokio::test]
+    async fn parse_ubuntu_jammy_main_sources() {
         // Ubuntu Jammy signing key.
         let key = Key::key("/etc/apt/trusted.gpg.d/ubuntu-keyring-2018-archive.gpg");
 
         // Ubuntu Jammy distribution.
         let distro = Distro::repo("http://archive.ubuntu.com/ubuntu", "jammy", key);
 
-        let release = Release::from_distro(&distro).unwrap();
+        let release = Release::from_distro(&distro).await.unwrap();
 
-        let package_index = SourceIndex::new(&release, "main").unwrap();
+        let package_index = SourceIndex::new(&release, "main").await.unwrap();
 
         println!("Package count: {}", package_index.package_count());
         assert!(package_index.package_count() > 2000);

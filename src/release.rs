@@ -75,13 +75,13 @@ impl Release {
     }
 
     /// Download and parse the InRelease file of the given Distro.
-    pub fn from_distro(distro: &Distro) -> Result<Release> {
+    pub async fn from_distro(distro: &Distro) -> Result<Release> {
         // Get URL content.
         let url = distro.in_release_url()?;
-        let content = download(&url)?;
+        let content = download(&url).await?;
 
         // Verify signature.
-        let content = verify_in_release(content, distro)?;
+        let content = verify_in_release(content, distro).await?;
 
         // Parse content.
         let mut section = ReleaseSection::Keywords;
@@ -289,12 +289,12 @@ impl Release {
         Ok(())
     }
 
-    pub fn get_package_links(&self) -> Vec<(String, Architecture, Link)> {
+    pub async fn get_package_links(&self) -> Vec<(String, Architecture, Link)> {
         let mut components = Vec::new();
 
         for architecture in &self.architectures {
             for component in &self.components {
-                let link = match self.get_package_index_link(component, architecture) {
+                let link = match self.get_package_index_link(component, architecture).await {
                     Ok(link) => link,
                     Err(_) => {
                         info!("No link for component {component} and architecture {architecture}. Skipping.");
@@ -308,7 +308,7 @@ impl Release {
         components
     }
 
-    pub fn get_package_index_link(
+    pub async fn get_package_index_link(
         &self,
         component: &str,
         architecture: &Architecture,
@@ -333,7 +333,7 @@ impl Release {
             // The link is mandatory to get the hash sums for verification.
             match self.links.get(&package_index) {
                 Some(link) => {
-                    match get_etag(&link.url) {
+                    match get_etag(&link.url).await {
                         Ok(_) => return Ok(link.clone()), // Index file exists.
                         Err(_) => {
                             info!("No etag for {package_index}, trying next link.");
@@ -368,15 +368,15 @@ enum ReleaseSection {
 mod tests {
     use crate::{Distro, Key, Release};
 
-    #[test]
-    fn parse_ubuntu_jammy_release_file() {
+    #[tokio::test]
+    async fn parse_ubuntu_jammy_release_file() {
         // Ubuntu Jammy signing key.
         let key = Key::key("/etc/apt/trusted.gpg.d/ubuntu-keyring-2018-archive.gpg");
 
         // Ubuntu Jammy distribution.
         let distro = Distro::repo("http://archive.ubuntu.com/ubuntu", "jammy", key);
 
-        let release = Release::from_distro(&distro).unwrap();
+        let release = Release::from_distro(&distro).await.unwrap();
 
         assert_eq!(release.origin, Some("Ubuntu".to_string()), "Origin");
         assert_eq!(release.label, Some("Ubuntu".to_string()), "Label");
@@ -386,14 +386,14 @@ mod tests {
         assert_eq!(release.acquire_by_hash, true, "Acquire-By-Hash");
 
         // Parse the InRelease file.
-        let release = Release::from_distro(&distro).unwrap();
+        let release = Release::from_distro(&distro).await.unwrap();
 
         // Check for compliance with https://wiki.debian.org/DebianRepository/Format#A.22Release.22_files.
         release.check_compliance().unwrap();
     }
 
-    #[test]
-    fn parse_ebcl_release_file() {
+    #[tokio::test]
+    async fn parse_ebcl_release_file() {
         // EBcL signing key.
         let key = Key::armored_key("https://linux.elektrobit.com/eb-corbos-linux/ebcl_1.0_key.pub");
 
@@ -404,21 +404,21 @@ mod tests {
             key,
         );
 
-        let release = Release::from_distro(&distro).unwrap();
+        let release = Release::from_distro(&distro).await.unwrap();
 
         assert_eq!(release.origin, Some("Elektrobit".to_string()), "Origin");
         assert_eq!(release.suite, Some("ebcl".to_string()), "Suite");
         assert_eq!(release.codename, Some("ebcl".to_string()), "Codename");
 
         // Parse the InRelease file.
-        let release = Release::from_distro(&distro).unwrap();
+        let release = Release::from_distro(&distro).await.unwrap();
 
         // Check for compliance with https://wiki.debian.org/DebianRepository/Format#A.22Release.22_files.
         release.check_compliance().unwrap();
     }
 
-    #[test]
-    fn test_wrong_key() {
+    #[tokio::test]
+    async fn test_wrong_key() {
         // Ubuntu Jammy signing key.
         let key = Key::key("/etc/apt/trusted.gpg.d/ubuntu-keyring-2018-archive.gpg");
 
@@ -429,24 +429,25 @@ mod tests {
             key,
         );
 
-        match Release::from_distro(&distro) {
+        match Release::from_distro(&distro).await {
             Ok(_) => assert!(false), // Key verification shall fail!
             Err(_) => {}
         };
     }
 
-    #[test]
-    fn test_package_index_link() {
+    #[tokio::test]
+    async fn test_package_index_link() {
         // Ubuntu Jammy signing key.
         let key = Key::key("/etc/apt/trusted.gpg.d/ubuntu-keyring-2018-archive.gpg");
 
         // Ubuntu Jammy distribution.
         let distro = Distro::repo("http://archive.ubuntu.com/ubuntu", "jammy", key);
 
-        let release = Release::from_distro(&distro).unwrap();
+        let release = Release::from_distro(&distro).await.unwrap();
 
         let link = release
             .get_package_index_link("main", &crate::Architecture::Amd64)
+            .await
             .unwrap();
         assert_eq!(
             link.url,
@@ -454,23 +455,26 @@ mod tests {
                 .to_string()
         );
 
-        match release.get_package_index_link("main", &crate::Architecture::Arm64) {
+        match release
+            .get_package_index_link("main", &crate::Architecture::Arm64)
+            .await
+        {
             Ok(_) => assert!(false), // Should not exist!
             Err(_) => {}             // Ok, expected.
         };
     }
 
-    #[test]
-    fn test_get_package_links() {
+    #[tokio::test]
+    async fn test_get_package_links() {
         // Ubuntu Jammy signing key.
         let key = Key::key("/etc/apt/trusted.gpg.d/ubuntu-keyring-2018-archive.gpg");
 
         // Ubuntu Jammy distribution.
         let distro = Distro::repo("http://archive.ubuntu.com/ubuntu", "jammy", key);
 
-        let release = Release::from_distro(&distro).unwrap();
+        let release = Release::from_distro(&distro).await.unwrap();
 
-        let components = release.get_package_links();
+        let components = release.get_package_links().await;
         println!("Components: {:?}", components);
         println!("Found {} package indices.", components.len());
         assert_eq!(components.len(), 8);

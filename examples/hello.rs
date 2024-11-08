@@ -1,13 +1,14 @@
 use libapt::{Architecture, Distro, Key, PackageIndex, Release, SourceIndex};
 
-fn main() {
+#[tokio::main]
+async fn main() {
     let key = Key::key("/etc/apt/trusted.gpg.d/ubuntu-keyring-2018-archive.gpg");
 
     // Default repository format using a public key form an URL.
     let distro = Distro::repo("http://archive.ubuntu.com/ubuntu", "jammy", key.clone());
 
     // Parse the InRelease file.
-    let release = Release::from_distro(&distro).unwrap();
+    let release = Release::from_distro(&distro).await.unwrap();
 
     // Check for compliance with https://wiki.debian.org/DebianRepository/Format#A.22Release.22_files.
     match release.check_compliance() {
@@ -16,7 +17,9 @@ fn main() {
     };
 
     // Parse the package index of the main component for the amd64 architecture.
-    let main_amd64 = PackageIndex::new(&release, "main", &Architecture::Amd64).unwrap();
+    let main_amd64 = PackageIndex::new(&release, "main", &Architecture::Amd64)
+        .await
+        .unwrap();
 
     println!(
         "Ubuntu Jammy main provides {} packages for amd64.",
@@ -38,10 +41,10 @@ fn main() {
     let distro = Distro::repo("http://archive.ubuntu.com/ubuntu", "jammy", key);
 
     // Parse the InRelease file.
-    let release = Release::from_distro(&distro).unwrap();
+    let release = Release::from_distro(&distro).await.unwrap();
 
     // Parse the package index of the main component for the amd64 architecture.
-    let main_sources = SourceIndex::new(&release, "main").unwrap();
+    let main_sources = SourceIndex::new(&release, "main").await.unwrap();
 
     println!(
         "Ubuntu Jammy main provides {} source packages.",

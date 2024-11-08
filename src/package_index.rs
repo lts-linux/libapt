@@ -21,7 +21,7 @@ pub struct PackageIndex {
 
 impl PackageIndex {
     /// Parse a package index.
-    pub fn new(
+    pub async fn new(
         release: &Release,
         component: &str,
         architecture: &Architecture,
@@ -39,16 +39,18 @@ impl PackageIndex {
             issues: Vec::new(),
         };
 
-        let link = release.get_package_index_link(component, architecture)?;
+        let link = release
+            .get_package_index_link(component, architecture)
+            .await?;
 
-        package_index.issues = package_index.parse_index(&link, release)?;
+        package_index.issues = package_index.parse_index(&link, release).await?;
 
         Ok(package_index)
     }
 
     /// Download the package index, verify the hash, and parse the content.
-    fn parse_index(&mut self, link: &Link, release: &Release) -> Result<Vec<Error>> {
-        let content = download_compressed(&link)?;
+    async fn parse_index(&mut self, link: &Link, release: &Release) -> Result<Vec<Error>> {
+        let content = download_compressed(&link).await?;
         let mut issues = Vec::new();
 
         for stanza in content.split("\n\n") {
@@ -137,17 +139,19 @@ mod tests {
 
     use super::PackageIndex;
 
-    #[test]
-    fn parse_ubuntu_jammy_main_amd64() {
+    #[tokio::test]
+    async fn parse_ubuntu_jammy_main_amd64() {
         // Ubuntu Jammy signing key.
         let key = Key::key("/etc/apt/trusted.gpg.d/ubuntu-keyring-2018-archive.gpg");
 
         // Ubuntu Jammy distribution.
         let distro = Distro::repo("http://archive.ubuntu.com/ubuntu", "jammy", key);
 
-        let release = Release::from_distro(&distro).unwrap();
+        let release = Release::from_distro(&distro).await.unwrap();
 
-        let package_index = PackageIndex::new(&release, "main", &Architecture::Amd64).unwrap();
+        let package_index = PackageIndex::new(&release, "main", &Architecture::Amd64)
+            .await
+            .unwrap();
 
         assert_eq!(package_index.architecture, Architecture::Amd64);
 
@@ -159,17 +163,17 @@ mod tests {
         assert_eq!(busybox.architecture, Some(Architecture::Amd64));
     }
 
-    #[test]
-    fn parse_source_index() {
+    #[tokio::test]
+    async fn parse_source_index() {
         // Ubuntu Jammy signing key.
         let key = Key::key("/etc/apt/trusted.gpg.d/ubuntu-keyring-2018-archive.gpg");
 
         // Ubuntu Jammy distribution.
         let distro = Distro::repo("http://archive.ubuntu.com/ubuntu", "jammy", key);
 
-        let release = Release::from_distro(&distro).unwrap();
+        let release = Release::from_distro(&distro).await.unwrap();
 
-        match PackageIndex::new(&release, "main", &Architecture::Source) {
+        match PackageIndex::new(&release, "main", &Architecture::Source).await {
             Ok(_) => assert!(false), // Binary and source indices use different formats.
             Err(_) => {}             // Expected.
         }

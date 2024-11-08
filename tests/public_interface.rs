@@ -1,14 +1,14 @@
 use libapt::{Distro, Key, Release};
 
-#[test]
-fn parse_ubuntu_jammy_release_file() {
+#[tokio::test]
+async fn parse_ubuntu_jammy_release_file() {
     let distro = Distro::repo(
         "http://archive.ubuntu.com/ubuntu",
         "jammy",
         Key::NoSignatureCheck,
     );
 
-    let release = Release::from_distro(&distro).unwrap();
+    let release = Release::from_distro(&distro).await.unwrap();
 
     assert_eq!(release.origin, Some("Ubuntu".to_string()), "Origin");
     assert_eq!(release.label, Some("Ubuntu".to_string()), "Label");
